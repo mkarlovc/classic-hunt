@@ -1,0 +1,44 @@
+{
+  "cars": [
+    {
+      "brand": "Saab",
+      "model": "900",
+      "minPrice": 0,
+      "maxPrice": 999999,
+      "minYear": 0,
+      "maxYear": 2090
+    },
+    {
+      "brand": "AlfaRomeo",
+      "model": "GT",
+      "minPrice": 0,
+      "maxPrice": 999999,
+      "minYear": 0,
+      "maxYear": 2090
+    },
+    {
+      "brand": "Mercedes-Benz",
+      "model": "CLK-Razred",
+      "minPrice": 0,
+      "maxPrice": 999999,
+      "minYear": 0,
+      "maxYear": 2090
+    },
+    {
+      "brand": "Nissan",
+      "model": "Pathfinder",
+      "minPrice": 0,
+      "maxPrice": 999999,
+      "minYear": 0,
+      "maxYear": 2010
+    },
+    {
+      "brand": "Jeep",
+      "model": "Cherokee",
+      "minPrice": 0,
+      "maxPrice": 999999,
+      "minYear": 0,
+      "maxYear": 2007
+    }
+  ]
+}
