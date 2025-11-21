@@ -19,13 +19,46 @@ const scrapeCarWithPage = async (page, car) => {
   // Navigate with longer timeout
   await page.goto(URL, { waitUntil: "load", timeout: 45000 });
 
-  // Wait longer for the page to fully render and bypass any checks
-  await page.waitForTimeout(5000);
+  // Wait for page to start loading
+  await page.waitForTimeout(2000 + Math.random() * 1000);
 
-  // Add some random mouse movements to appear more human
-  await page.mouse.move(Math.random() * 100, Math.random() * 100);
-  await page.waitForTimeout(500);
-  await page.mouse.move(Math.random() * 200 + 100, Math.random() * 200 + 100);
+  // Extensive scrolling and clicking to appear human
+  console.log('  📜 Scrolling and clicking to appear human...');
+  for (let i = 0; i < 8; i++) {
+    // Scroll down
+    await page.mouse.wheel(0, 200 + Math.random() * 300);
+    await page.waitForTimeout(400 + Math.random() * 600);
+
+    // Random mouse movement
+    await page.mouse.move(
+      Math.random() * 600 + 100,
+      Math.random() * 400 + 100,
+      { steps: 5 }
+    );
+    await page.waitForTimeout(200 + Math.random() * 400);
+
+    // Sometimes click on something random (hover first)
+    if (Math.random() > 0.7) {
+      try {
+        const elements = await page.$$('a, img, div');
+        if (elements.length > 0) {
+          const el = elements[Math.floor(Math.random() * Math.min(elements.length, 20))];
+          await el.hover();
+          await page.waitForTimeout(200 + Math.random() * 300);
+        }
+      } catch (e) {}
+    }
+
+    // Sometimes scroll up
+    if (Math.random() > 0.5) {
+      await page.mouse.wheel(0, -(100 + Math.random() * 200));
+      await page.waitForTimeout(300 + Math.random() * 400);
+    }
+  }
+
+  // Scroll back to top
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(1000 + Math.random() * 1000);
 
   // Check if we got blocked by Cloudflare
   const pageContent = await page.content();
@@ -149,11 +182,59 @@ const scrapeCarWithPage = async (page, car) => {
     slowMo: 100,
   });
 
-  // Create browser context with Slovenian settings
+  // Create browser context with Slovenian settings and persistent storage
+  const storageFile = './browser-state.json';
+  let storageState = undefined;
+  try {
+    await fs.access(storageFile);
+    storageState = storageFile;
+    console.log('📦 Loading saved browser session...');
+  } catch (e) {
+    console.log('📦 No saved session, starting fresh...');
+  }
+
   const context = await browser.newContext({
     locale: 'sl-SI',
     timezoneId: 'Europe/Ljubljana',
+    storageState: storageState,
   });
+
+  // Warm up: visit homepage first to establish session
+  console.log('🏠 Warming up - visiting homepage first...');
+  const warmupPage = await context.newPage();
+  await warmupPage.goto('https://www.avto.net', { waitUntil: 'load', timeout: 45000 });
+  await warmupPage.waitForTimeout(3000 + Math.random() * 2000);
+
+  // Scroll and click around on homepage
+  for (let i = 0; i < 5; i++) {
+    await warmupPage.mouse.wheel(0, 200 + Math.random() * 300);
+    await warmupPage.waitForTimeout(500 + Math.random() * 500);
+    await warmupPage.mouse.move(Math.random() * 500 + 100, Math.random() * 400 + 100, { steps: 5 });
+  }
+
+  // Click on random safe elements (links, images)
+  try {
+    const clickableElements = await warmupPage.$$('a, img');
+    if (clickableElements.length > 0) {
+      const randomEl = clickableElements[Math.floor(Math.random() * Math.min(clickableElements.length, 10))];
+      await randomEl.hover();
+      await warmupPage.waitForTimeout(500 + Math.random() * 500);
+      await randomEl.click();
+      await warmupPage.waitForTimeout(2000 + Math.random() * 2000);
+
+      // Scroll on the new page too
+      for (let i = 0; i < 3; i++) {
+        await warmupPage.mouse.wheel(0, 150 + Math.random() * 200);
+        await warmupPage.waitForTimeout(400 + Math.random() * 400);
+      }
+    }
+  } catch (e) {
+    // Ignore click errors
+  }
+
+  await warmupPage.waitForTimeout(2000 + Math.random() * 2000);
+  await warmupPage.close();
+  console.log('✅ Warmup complete\n');
 
   for (let i = 0; i < config.cars.length; i++) {
     // Create a new page for each search
@@ -167,13 +248,17 @@ const scrapeCarWithPage = async (page, car) => {
       await page.close();
     }
 
-    // Add random delay between 3-7 seconds (except after the last car)
+    // Add random delay between 10-20 seconds (except after the last car)
     if (i < config.cars.length - 1) {
-      const delay = Math.floor(Math.random() * 4000) + 3000; // 3000-7000ms
+      const delay = Math.floor(Math.random() * 10000) + 10000; // 10000-20000ms
       console.log(`⏳ Waiting ${(delay / 1000).toFixed(1)}s before next search...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
+
+  // Save browser state for next run
+  await context.storageState({ path: './browser-state.json' });
+  console.log('💾 Browser session saved for next run');
 
   await context.close();
   await browser.close();
