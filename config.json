@@ -18,6 +18,14 @@
       "maxYear": 2090
     },
     {
+      "brand": "AlfaRomeo",
+      "model": "GTV",
+      "minPrice": 0,
+      "maxPrice": 999999,
+      "minYear": 0,
+      "maxYear": 2090
+    },
+    {
       "brand": "Mercedes-Benz",
       "model": "CLK-Razred",
       "minPrice": 0,
