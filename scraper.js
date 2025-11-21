@@ -145,7 +145,8 @@ const scrapeCarWithPage = async (page, car) => {
 (async () => {
   // Stealth plugin handles most anti-detection automatically
   const browser = await chromium.launch({
-    headless: true,
+    headless: false,
+    slowMo: 100,
   });
 
   // Create browser context with Slovenian settings
