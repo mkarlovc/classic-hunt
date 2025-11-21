@@ -3,6 +3,14 @@ import path from "path";
 
 const outputDir = "./output";
 const htmlFile = "./results.html";
+const config = await fs.readJson("./config.json");
+const newListingDays = config.newListingDays || 3;
+
+const isNewListing = (firstSeen) => {
+  if (!firstSeen) return false;
+  const daysAgo = (Date.now() - new Date(firstSeen).getTime()) / (1000 * 60 * 60 * 24);
+  return daysAgo <= newListingDays;
+};
 
 // Read all JSON files from output directory
 const files = await fs.readdir(outputDir);
@@ -89,6 +97,11 @@ const html = `<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+
+    .car-card.new-listing {
+      background: #fffde7;
+      border-color: #fff59d;
     }
 
     .car-card:hover {
@@ -187,7 +200,7 @@ const html = `<!DOCTYPE html>
         ${group.cars.length > 0 ? `
           <div class="cars-grid">
             ${group.cars.map(car => `
-              <div class="car-card">
+              <div class="car-card${isNewListing(car.first_seen) ? ' new-listing' : ''}">
                 ${car.titleImageUrl ? `<a href="${car.link || '#'}" target="_blank"><img src="${car.titleImageUrl}" alt="${car.title || 'Car'}" class="car-image"></a>` : ''}
                 <div class="car-content">
                   <a href="${car.link || '#'}" target="_blank" class="car-title-link"><div class="car-title">${car.title || 'N/A'}</div></a>
