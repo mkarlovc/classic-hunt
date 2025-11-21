@@ -1,0 +1,38 @@
+[
+  {
+    "title": "Saab 900 900 Turbo 2.0",
+    "price": "3.500 €",
+    "year": "1991",
+    "kilometers": "215000 km",
+    "gearbox": "avtomatski",
+    "titleImageUrl": "https://images.avto.net/photo/21676931/1074228_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21676931&display=Saab%20900",
+    "ts": "2025-11-21T15:18:06.335Z",
+    "status": "active",
+    "last_update": "2025-11-21T15:18:06.335Z"
+  },
+  {
+    "title": "Saab 900 TURBO CABRIO",
+    "price": "13.500 €",
+    "year": "1987",
+    "kilometers": "179000 km",
+    "gearbox": "avtomatski",
+    "titleImageUrl": "https://images.avto.net/photo/21597475/1036761_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21597475&display=Saab%20900",
+    "ts": "2025-11-21T15:18:06.335Z",
+    "status": "active",
+    "last_update": "2025-11-21T15:18:06.335Z"
+  },
+  {
+    "title": "Saab 900 900 SE",
+    "price": "2.500 €",
+    "year": "1995",
+    "kilometers": "165000 km",
+    "gearbox": "ročni",
+    "titleImageUrl": "https://images.avto.net/photo/21283110/1067218_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21283110&display=Saab%20900",
+    "ts": "2025-11-21T15:18:06.335Z",
+    "status": "active",
+    "last_update": "2025-11-21T15:18:06.335Z"
+  }
+]
