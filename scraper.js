@@ -60,7 +60,7 @@ const scrapeCarWithPage = async (page, car) => {
 
   const scrapeTime = new Date().toISOString();
 
-  const cars = await page.$$eval(".GO-Results-Row", (rows, ts) =>
+  const cars = await page.$$eval(".GO-Results-Row", (rows) =>
     rows.map((row) => {
       // Get all text content from the row
       const allText = row.innerText || '';
@@ -89,9 +89,8 @@ const scrapeCarWithPage = async (page, car) => {
         gearbox: gearbox,
         titleImageUrl: titleImageUrl,
         link: row.querySelector("a")?.href || null,
-        ts: ts,
       };
-    }), scrapeTime
+    })
   );
 
   console.log(`✅ Found ${cars.length} listings for ${car.brand} ${car.model}`);
@@ -115,11 +114,15 @@ const scrapeCarWithPage = async (page, car) => {
   }
 
   // Update new cars with status and last_update
-  const updatedCars = cars.map(car => ({
-    ...car,
-    status: 'active',
-    last_update: scrapeTime,
-  }));
+  const updatedCars = cars.map(car => {
+    const existing = existingMap.get(car.link);
+    return {
+      ...car,
+      status: 'active',
+      first_seen: existing?.first_seen || scrapeTime,
+      last_update: scrapeTime,
+    };
+  });
 
   // Create map of newly scraped links
   const newLinks = new Set(updatedCars.map(c => c.link));

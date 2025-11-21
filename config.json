@@ -1,4 +1,5 @@
 {
+  "newListingDays": 3,
   "cars": [
     {
       "brand": "Saab",
