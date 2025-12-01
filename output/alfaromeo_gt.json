@@ -1,17 +1,5 @@
 [
   {
-    "title": "Alfa Romeo GT 1.9 JTDM 16v Progression tehnični na novo",
-    "price": "2.520 €",
-    "year": "2007",
-    "kilometers": "272000 km",
-    "gearbox": "ročni",
-    "titleImageUrl": "https://images.avto.net/photo/21667028/1039127_160.jpg",
-    "link": "https://www.avto.net/Ads/details.asp?id=21667028&display=Alfa%20Romeo%20GT",
-    "status": "active",
-    "first_seen": "2025-11-21T20:11:16.958Z",
-    "last_update": "2025-11-21T20:50:52.469Z"
-  },
-  {
     "title": "Alfa Romeo GT",
     "price": "1.000 €",
     "year": "2004",
@@ -21,7 +9,7 @@
     "link": "https://www.avto.net/Ads/details.asp?id=21639075&display=Alfa%20Romeo%20GT",
     "status": "active",
     "first_seen": "2025-11-21T20:11:16.958Z",
-    "last_update": "2025-11-21T20:50:52.469Z"
+    "last_update": "2025-12-01T21:33:50.686Z"
   },
   {
     "title": "Alfa Romeo GT 1.9 Multijet 16v Progression",
@@ -33,7 +21,7 @@
     "link": "https://www.avto.net/Ads/details.asp?id=20807713&display=Alfa%20Romeo%20GT",
     "status": "active",
     "first_seen": "2025-11-21T20:11:16.958Z",
-    "last_update": "2025-11-21T20:50:52.469Z"
+    "last_update": "2025-12-01T21:33:50.686Z"
   },
   {
     "title": "Alfa Romeo GT 1.9 JTD M-Jet Blackline",
@@ -45,7 +33,7 @@
     "link": "https://www.avto.net/Ads/details.asp?id=19851078&display=Alfa%20Romeo%20GT",
     "status": "active",
     "first_seen": "2025-11-21T20:11:16.958Z",
-    "last_update": "2025-11-21T20:50:52.469Z"
+    "last_update": "2025-12-01T21:33:50.686Z"
   },
   {
     "title": "Alfa Romeo GT 1.9 JTDM Blackline III",
@@ -56,6 +44,18 @@
     "titleImageUrl": "https://images.avto.net/photo/18501047/1039784_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=18501047&display=Alfa%20Romeo%20GT",
     "status": "active",
+    "first_seen": "2025-11-21T20:11:16.958Z",
+    "last_update": "2025-12-01T21:33:50.686Z"
+  },
+  {
+    "title": "Alfa Romeo GT 1.9 JTDM 16v Progression tehnični na novo",
+    "price": "2.520 €",
+    "year": "2007",
+    "kilometers": "272000 km",
+    "gearbox": "ročni",
+    "titleImageUrl": "https://images.avto.net/photo/21667028/1039127_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21667028&display=Alfa%20Romeo%20GT",
+    "status": "inactive",
     "first_seen": "2025-11-21T20:11:16.958Z",
     "last_update": "2025-11-21T20:50:52.469Z"
   }

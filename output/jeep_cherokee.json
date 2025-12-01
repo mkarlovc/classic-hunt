@@ -1,5 +1,29 @@
 [
   {
+    "title": "Jeep Cherokee",
+    "price": "3.700 €",
+    "year": "2001",
+    "kilometers": "238783 km",
+    "gearbox": "ročni",
+    "titleImageUrl": "https://images.avto.net/photo/21756061/1060307_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21756061&display=Jeep%20Cherokee",
+    "status": "active",
+    "first_seen": "2025-12-01T21:37:26.843Z",
+    "last_update": "2025-12-01T21:37:26.843Z"
+  },
+  {
+    "title": "Jeep Cherokee 4.0 Limited-auto",
+    "price": "8.000 €",
+    "year": "2000",
+    "kilometers": null,
+    "gearbox": "avtomatski",
+    "titleImageUrl": "https://images.avto.net/photo/21752432/1078029_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21752432&display=Jeep%20Cherokee",
+    "status": "active",
+    "first_seen": "2025-12-01T21:37:26.843Z",
+    "last_update": "2025-12-01T21:37:26.843Z"
+  },
+  {
     "title": "Jeep Cherokee 2.8 TD AUTOMATIC REDUKTOR VLEČNA HITRI KREDIT",
     "price": "7.700 €",
     "year": "2007",
@@ -9,7 +33,7 @@
     "link": "https://www.avto.net/Ads/details.asp?id=21710027&display=Jeep%20Cherokee",
     "status": "active",
     "first_seen": "2025-11-21T20:12:10.682Z",
-    "last_update": "2025-11-21T20:54:23.721Z"
+    "last_update": "2025-12-01T21:37:26.843Z"
   },
   {
     "title": "Jeep Cherokee 2.8 CRD Limited-Kamera-4x4-Usnje-Gretje sedežev-..",
@@ -21,11 +45,11 @@
     "link": "https://www.avto.net/Ads/details.asp?id=21704858&display=Jeep%20Cherokee",
     "status": "active",
     "first_seen": "2025-11-21T20:12:10.682Z",
-    "last_update": "2025-11-21T20:54:23.721Z"
+    "last_update": "2025-12-01T21:37:26.843Z"
   },
   {
     "title": "Jeep Cherokee 2.5 CRD",
-    "price": "7.500 €",
+    "price": "Pokličite za ceno!",
     "year": "2004",
     "kilometers": "174000 km",
     "gearbox": "ročni",
@@ -33,7 +57,19 @@
     "link": "https://www.avto.net/Ads/details.asp?id=21687072&display=Jeep%20Cherokee",
     "status": "active",
     "first_seen": "2025-11-21T20:12:10.682Z",
-    "last_update": "2025-11-21T20:54:23.721Z"
+    "last_update": "2025-12-01T21:37:26.843Z"
+  },
+  {
+    "title": "Jeep Cherokee 2.8 CRD Renegade-auto",
+    "price": "5.150 €",
+    "year": "2005",
+    "kilometers": "250000 km",
+    "gearbox": "avtomatski",
+    "titleImageUrl": "https://images.avto.net/photo/21521663/1064362_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21521663&display=Jeep%20Cherokee",
+    "status": "active",
+    "first_seen": "2025-11-21T20:12:10.682Z",
+    "last_update": "2025-12-01T21:37:26.843Z"
   },
   {
     "title": "Jeep Cherokee 2.5 CRD Limited",
@@ -43,7 +79,7 @@
     "gearbox": "ročni",
     "titleImageUrl": "https://images.avto.net/photo/21634240/1051890_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=21634240&display=Jeep%20Cherokee",
-    "status": "active",
+    "status": "inactive",
     "first_seen": "2025-11-21T20:12:10.682Z",
     "last_update": "2025-11-21T20:54:23.721Z"
   },
@@ -55,19 +91,7 @@
     "gearbox": "avtomatski",
     "titleImageUrl": "https://images.avto.net/photo/21617431/1026232_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=21617431&display=Jeep%20Cherokee",
-    "status": "active",
-    "first_seen": "2025-11-21T20:12:10.682Z",
-    "last_update": "2025-11-21T20:54:23.721Z"
-  },
-  {
-    "title": "Jeep Cherokee 2.8 CRD Renegade-auto",
-    "price": "5.250 €",
-    "year": "2005",
-    "kilometers": "250000 km",
-    "gearbox": "avtomatski",
-    "titleImageUrl": "https://images.avto.net/photo/21521663/1064362_160.jpg",
-    "link": "https://www.avto.net/Ads/details.asp?id=21521663&display=Jeep%20Cherokee",
-    "status": "active",
+    "status": "inactive",
     "first_seen": "2025-11-21T20:12:10.682Z",
     "last_update": "2025-11-21T20:54:23.721Z"
   }
