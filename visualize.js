@@ -37,6 +37,14 @@ for (const file of jsonFiles) {
   });
 }
 
+const lastUpdate = new Date().toLocaleString('sl-SI', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+});
+
 const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,8 +72,15 @@ const html = `<!DOCTYPE html>
 
     h1 {
       color: #333;
-      margin-bottom: 30px;
+      margin-bottom: 10px;
       font-size: 2em;
+    }
+
+    .last-update {
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 30px;
+      font-weight: normal;
     }
 
     .brand-section {
@@ -192,6 +207,8 @@ const html = `<!DOCTYPE html>
 </head>
 <body>
   <div class="container">
+    <h1>Classic Hunt</h1>
+    <div class="last-update">Last updated: ${lastUpdate}</div>
     ${allCars.map(group => `
       <div class="brand-section">
         <div class="brand-header">
