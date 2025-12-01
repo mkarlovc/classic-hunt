@@ -203,12 +203,12 @@ const scrapeCarWithPage = async (page, car) => {
   console.log('🏠 Warming up - visiting homepage first...');
   const warmupPage = await context.newPage();
   await warmupPage.goto('https://www.avto.net', { waitUntil: 'load', timeout: 45000 });
-  await warmupPage.waitForTimeout(3000 + Math.random() * 2000);
+  await warmupPage.waitForTimeout(5000 + Math.random() * 3000);
 
   // Scroll and click around on homepage
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     await warmupPage.mouse.wheel(0, 200 + Math.random() * 300);
-    await warmupPage.waitForTimeout(500 + Math.random() * 500);
+    await warmupPage.waitForTimeout(800 + Math.random() * 700);
     await warmupPage.mouse.move(Math.random() * 500 + 100, Math.random() * 400 + 100, { steps: 5 });
   }
 
@@ -218,21 +218,21 @@ const scrapeCarWithPage = async (page, car) => {
     if (clickableElements.length > 0) {
       const randomEl = clickableElements[Math.floor(Math.random() * Math.min(clickableElements.length, 10))];
       await randomEl.hover();
-      await warmupPage.waitForTimeout(500 + Math.random() * 500);
+      await warmupPage.waitForTimeout(1000 + Math.random() * 1000);
       await randomEl.click();
-      await warmupPage.waitForTimeout(2000 + Math.random() * 2000);
+      await warmupPage.waitForTimeout(4000 + Math.random() * 3000);
 
       // Scroll on the new page too
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 5; i++) {
         await warmupPage.mouse.wheel(0, 150 + Math.random() * 200);
-        await warmupPage.waitForTimeout(400 + Math.random() * 400);
+        await warmupPage.waitForTimeout(600 + Math.random() * 600);
       }
     }
   } catch (e) {
     // Ignore click errors
   }
 
-  await warmupPage.waitForTimeout(2000 + Math.random() * 2000);
+  await warmupPage.waitForTimeout(3000 + Math.random() * 3000);
   await warmupPage.close();
   console.log('✅ Warmup complete\n');
 
