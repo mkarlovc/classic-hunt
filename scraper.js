@@ -205,7 +205,17 @@ const scrapeCarWithPage = async (page, car) => {
         title:
           row.querySelector(".GO-Results-Naziv")?.innerText.trim() || null,
         price:
-          row.querySelector(".GO-Results-Price")?.innerText.replace(/[\r\n]+/g, " ").replace(/\s{2,}/g, " ").trim() || null,
+          (() => {
+            let p = row.querySelector(".GO-Results-Price")?.innerText.replace(/[\r\n]+/g, " ").replace(/\s{2,}/g, " ").trim() || null;
+            if (p && p.startsWith("AKCIJSKA CENA")) {
+              const prices = p.match(/[\d.]+\s*€/g);
+              if (prices && prices.length > 1) p = prices[prices.length - 1].trim();
+            } else if (p && p.includes("oz.")) {
+              const prices = p.match(/[\d.]+\s*€/g);
+              if (prices && prices.length > 0) p = prices[0].trim();
+            }
+            return p;
+          })(),
         year,
         kilometers,
         hp,
@@ -353,8 +363,16 @@ const scrapeCarWithPage = async (page, car) => {
   const files = await fs.readdir(outputDir);
   const jsonFiles = files.filter((f) => f.endsWith(".json"));
 
+  // Only include cars that are enabled in the config
+  const enabledFiles = new Set(
+    config.cars
+      .filter((c) => c.enabled !== false)
+      .map((c) => `${c.brand.toLowerCase()}_${c.model.toLowerCase()}.json`)
+  );
+
   let allAds = [];
   for (const file of jsonFiles) {
+    if (!enabledFiles.has(file)) continue;
     const data = await fs.readJson(path.join(outputDir, file));
     const [brand, model] = file.replace(".json", "").split("_");
     const modelName = `${brand.charAt(0).toUpperCase() + brand.slice(1)} ${model.toUpperCase()}`;
@@ -365,13 +383,18 @@ const scrapeCarWithPage = async (page, car) => {
     }
   }
 
-  // Sort by model name, then by price
+  // Parse price string to number (e.g. "24.000 €" -> 24000)
+  const parsePrice = (p) => {
+    if (!p) return Infinity;
+    const digits = p.replace(/[^0-9]/g, "");
+    return digits ? parseInt(digits, 10) : Infinity;
+  };
+
+  // Sort by model name, then by price numerically
   allAds.sort((a, b) => {
     const modelCmp = a.modelName.localeCompare(b.modelName);
     if (modelCmp !== 0) return modelCmp;
-    const priceA = parseFloat((a.price || "999999").replace(/[^0-9]/g, ""));
-    const priceB = parseFloat((b.price || "999999").replace(/[^0-9]/g, ""));
-    return priceA - priceB;
+    return parsePrice(a.price) - parsePrice(b.price);
   });
 
   const now = new Date();
