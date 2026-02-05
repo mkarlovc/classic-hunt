@@ -1,80 +1,154 @@
-import { chromium } from "playwright-extra";
-import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { chromium } from "playwright";
+import { spawn } from "child_process";
 import fs from "fs-extra";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
+import net from "net";
 
-// Add stealth plugin
-chromium.use(StealthPlugin());
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const config = await fs.readJson("./config.json");
+
+const PROFILE_DIR = path.join(__dirname, ".chrome-profile");
+const CHROME_PATH = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+const DEBUG_PORT = 9222;
+
+// Find a free port to avoid conflicts
+const findFreePort = () =>
+  new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.listen(0, () => {
+      const port = srv.address().port;
+      srv.close(() => resolve(port));
+    });
+    srv.on("error", reject);
+  });
+
+// Launch Chrome as a normal process (no Playwright hooks injected)
+const launchChrome = async (port) => {
+  await fs.ensureDir(PROFILE_DIR);
+
+  // Check if Chrome is already running — macOS won't start a second instance
+  const isRunning = await new Promise((resolve) => {
+    const check = spawn("pgrep", ["-f", "Google Chrome"]);
+    check.on("close", (code) => resolve(code === 0));
+  });
+
+  if (isRunning) {
+    console.log("⚠️  Chrome is already running. Quitting it first...");
+    await new Promise((resolve) => {
+      const quit = spawn("osascript", [
+        "-e",
+        'tell application "Google Chrome" to quit',
+      ]);
+      quit.on("close", resolve);
+    });
+    // Wait for Chrome to fully quit
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+
+  const args = [
+    `--remote-debugging-port=${port}`,
+    `--remote-allow-origins=*`,
+    `--user-data-dir=${PROFILE_DIR}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--start-maximized",
+  ];
+
+  const chrome = spawn(CHROME_PATH, args, {
+    detached: false,
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+
+  let stderrOutput = "";
+  chrome.stderr.on("data", (data) => {
+    stderrOutput += data.toString();
+  });
+
+  chrome.on("error", (err) => {
+    console.error("Failed to launch Chrome:", err.message);
+    process.exit(1);
+  });
+
+  chrome.on("exit", (code) => {
+    if (code !== null && code !== 0) {
+      console.error(`Chrome exited with code ${code}`);
+      if (stderrOutput) console.error(stderrOutput.slice(0, 500));
+    }
+  });
+
+  // Wait for the debug port to become available
+  for (let i = 0; i < 30; i++) {
+    const ready = await new Promise((resolve) => {
+      const sock = net.connect(port, "127.0.0.1", () => {
+        sock.destroy();
+        resolve(true);
+      });
+      sock.on("error", () => resolve(false));
+    });
+    if (ready) return chrome;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  console.error("Chrome did not start in time.");
+  if (stderrOutput) console.error("Chrome stderr:", stderrOutput.slice(0, 500));
+  chrome.kill();
+  process.exit(1);
+};
 
 const buildURL = (car) => {
   return `https://www.avto.net/Ads/results.asp?znamka=${car.brand}&model=${car.model}&modelID=&tip=katerikoli%20tip&znamka2=&model2=&tip2=katerikoli%20tip&znamka3=&model3=&tip3=katerikoli%20tip&cenaMin=${car.minPrice}&cenaMax=${car.maxPrice}&letnikMin=${car.minYear}&letnikMax=${car.maxYear}&bencin=0&starost2=999&oblika=0&ccmMin=0&ccmMax=99999&mocMin=&mocMax=&kmMin=0&kmMax=9999999&kwMin=0&kwMax=999&motortakt=&motorvalji=&lokacija=0&sirina=&dolzina=&dolzinaMIN=&dolzinaMAX=&nosilnostMIN=&nosilnostMAX=&sedezevMIN=&sedezevMAX=&lezisc=&presek=&premer=&col=&vijakov=&EToznaka=&vozilo=&airbag=&barva=&barvaint=&doseg=&BkType=&BkOkvir=&BkOkvirType=&Bk4=&EQ1=1000000000&EQ2=1000000000&EQ3=1000000000&EQ4=100000000&EQ5=1000000000&EQ6=1000000000&EQ7=1000000120&EQ8=101000000&EQ9=100000002&EQ10=100000000&KAT=1010000000&PIA=&PIAzero=&PIAOut=&PSLO=&akcija=&paketgarancije=&broker=&prikazkategorije=&kategorija=&ONLvid=&ONLnak=&zaloga=&arhiv=&presort=&tipsort=&stran=`;
 };
 
-const scrapeCarWithPage = async (page, car) => {
+const waitForCloudflare = async (page, label) => {
+  const content = await page.content();
+  const blocked =
+    content.includes("Sorry you have been blocked") ||
+    content.includes("challenge-platform") ||
+    (content.includes("Cloudflare") && content.includes("challenge"));
 
+  if (!blocked) return true;
+
+  console.log(`\n⚠️  Cloudflare challenge detected for ${label}`);
+  console.log(`    Please solve it in the browser window...`);
+
+  for (let i = 0; i < 120; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const newContent = await page.content();
+    const stillBlocked =
+      newContent.includes("Sorry you have been blocked") ||
+      newContent.includes("challenge-platform") ||
+      (newContent.includes("Cloudflare") && newContent.includes("challenge"));
+
+    if (!stillBlocked) {
+      console.log(`    ✅ Challenge solved! Continuing...`);
+      await new Promise((r) => setTimeout(r, 2000));
+      return true;
+    }
+  }
+
+  console.log(`    ❌ Challenge not solved after 2 minutes - skipping`);
+  return false;
+};
+
+const scrapeCarWithPage = async (page, car) => {
   const URL = buildURL(car);
   console.log(`\n🔍 Searching for ${car.brand} ${car.model}...`);
 
-  // Navigate with longer timeout
-  await page.goto(URL, { waitUntil: "load", timeout: 45000 });
+  await page.goto(URL, { waitUntil: "load", timeout: 60000 });
+  await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
 
-  // Wait for page to start loading
-  await page.waitForTimeout(2000 + Math.random() * 1000);
+  const passed = await waitForCloudflare(page, `${car.brand} ${car.model}`);
+  if (!passed) return;
 
-  // Extensive scrolling and clicking to appear human
-  console.log('  📜 Scrolling and clicking to appear human...');
-  for (let i = 0; i < 8; i++) {
-    // Scroll down
-    await page.mouse.wheel(0, 200 + Math.random() * 300);
-    await page.waitForTimeout(400 + Math.random() * 600);
-
-    // Random mouse movement
-    await page.mouse.move(
-      Math.random() * 600 + 100,
-      Math.random() * 400 + 100,
-      { steps: 5 }
-    );
-    await page.waitForTimeout(200 + Math.random() * 400);
-
-    // Sometimes click on something random (hover first)
-    if (Math.random() > 0.7) {
-      try {
-        const elements = await page.$$('a, img, div');
-        if (elements.length > 0) {
-          const el = elements[Math.floor(Math.random() * Math.min(elements.length, 20))];
-          await el.hover();
-          await page.waitForTimeout(200 + Math.random() * 300);
-        }
-      } catch (e) {}
-    }
-
-    // Sometimes scroll up
-    if (Math.random() > 0.5) {
-      await page.mouse.wheel(0, -(100 + Math.random() * 200));
-      await page.waitForTimeout(300 + Math.random() * 400);
-    }
-  }
-
-  // Scroll back to top
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(1000 + Math.random() * 1000);
-
-  // Check if we got blocked by Cloudflare
-  const pageContent = await page.content();
-  if (pageContent.includes('Sorry you have been blocked') || pageContent.includes('Cloudflare')) {
-    console.log(`⚠️ Blocked by Cloudflare for ${car.brand} ${car.model} - skipping`);
-    return;
-  }
-
-  // Check if listings exist
   const count = await page.locator(".GO-Results-Row").count();
   if (count === 0) {
-    console.log(`⚠️ No listings found for ${car.brand} ${car.model}`);
+    console.log(`⚠️  No listings found for ${car.brand} ${car.model}`);
     return;
   }
 
-  // Scroll to bottom to ensure all lazy-loaded results appear
+  // Scroll to bottom to load all lazy-loaded results
   await page.evaluate(async () => {
     await new Promise((resolve) => {
       let totalHeight = 0;
@@ -91,36 +165,54 @@ const scrapeCarWithPage = async (page, car) => {
     });
   });
 
+  await new Promise((r) => setTimeout(r, 1000));
   const scrapeTime = new Date().toISOString();
 
   const cars = await page.$$eval(".GO-Results-Row", (rows) =>
     rows.map((row) => {
-      // Get all text content from the row
-      const allText = row.innerText || '';
+      const allText = row.innerText || "";
 
-      // Extract year (format: MM/YYYY or just YYYY)
-      const yearMatch = allText.match(/(\d{1,2}\/\d{4})/) || allText.match(/\b(19|20)\d{2}\b/);
+      const yearMatch =
+        allText.match(/(\d{1,2}\/\d{4})/) || allText.match(/\b(19|20)\d{2}\b/);
       const year = yearMatch ? yearMatch[0] : null;
 
-      // Extract kilometers (format: number km)
       const kmMatch = allText.match(/([\d.]+)\s*km/);
-      const kilometers = kmMatch ? kmMatch[1] + ' km' : null;
+      const kilometers = kmMatch ? kmMatch[1] + " km" : null;
 
-      // Extract image URL
-      const imgElement = row.querySelector('img');
+      const imgElement = row.querySelector("img");
       const titleImageUrl = imgElement ? imgElement.src : null;
 
-      // Extract gearbox (ročni/avtomatski/polavtomatski)
-      const gearboxMatch = allText.match(/(?:ročni|avtomatski|polavtomatski|avtomatik)/i);
+      const gearboxMatch = allText.match(
+        /(?:ročni|avtomatski|polavtomatski|avtomatik)/i
+      );
       const gearbox = gearboxMatch ? gearboxMatch[0] : null;
 
+      const hpMatch = allText.match(/(\d+)\s*(?:KM|kM|HP|hp|KS|ks|konji)/);
+      const hp = hpMatch ? hpMatch[1] + " HP" : null;
+
+      const fuelMatch = allText.match(
+        /(?:bencin|diesel|dizel|plin|elektr|hybrid|hibrid|LPG|CNG)/i
+      );
+      const fuel = fuelMatch ? fuelMatch[0] : null;
+
+      // Slovenian phone numbers: 0X0 XXX XXX, 0X XXX XX XX, +386 ...
+      const phoneMatch = allText.match(
+        /(?:\+386[\s-]?\d[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|0[1-7]\d[\s-]?\d{3}[\s-]?\d{3}|0[1-7][\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2})/
+      );
+      const phone = phoneMatch ? phoneMatch[0].trim() : null;
+
       return {
-        title: row.querySelector(".GO-Results-Naziv")?.innerText.trim() || null,
-        price: row.querySelector(".GO-Results-Price")?.innerText.trim() || null,
-        year: year,
-        kilometers: kilometers,
-        gearbox: gearbox,
-        titleImageUrl: titleImageUrl,
+        title:
+          row.querySelector(".GO-Results-Naziv")?.innerText.trim() || null,
+        price:
+          row.querySelector(".GO-Results-Price")?.innerText.replace(/[\r\n]+/g, " ").replace(/\s{2,}/g, " ").trim() || null,
+        year,
+        kilometers,
+        hp,
+        gearbox,
+        fuel,
+        phone,
+        titleImageUrl,
         link: row.querySelector("a")?.href || null,
       };
     })
@@ -130,15 +222,13 @@ const scrapeCarWithPage = async (page, car) => {
   await fs.ensureDir("output");
   const filename = `${car.brand.toLowerCase()}_${car.model.toLowerCase()}.json`;
 
-  // Load existing data if available
   let existingCars = [];
   try {
     existingCars = await fs.readJson(`output/${filename}`);
   } catch (error) {
-    // File doesn't exist yet, that's fine
+    // File doesn't exist yet
   }
 
-  // Create a map of existing cars by link (unique identifier)
   const existingMap = new Map();
   for (const existing of existingCars) {
     if (existing.link) {
@@ -146,27 +236,22 @@ const scrapeCarWithPage = async (page, car) => {
     }
   }
 
-  // Update new cars with status and last_update
-  const updatedCars = cars.map(car => {
+  const updatedCars = cars.map((car) => {
     const existing = existingMap.get(car.link);
     return {
       ...car,
-      status: 'active',
+      status: "active",
       first_seen: existing?.first_seen || scrapeTime,
       last_update: scrapeTime,
     };
   });
 
-  // Create map of newly scraped links
-  const newLinks = new Set(updatedCars.map(c => c.link));
-
-  // Mark old cars as inactive if they weren't in the new scrape
+  const newLinks = new Set(updatedCars.map((c) => c.link));
   for (const [link, existingCar] of existingMap.entries()) {
     if (!newLinks.has(link)) {
       updatedCars.push({
         ...existingCar,
-        status: 'inactive',
-        // Keep the last_update from when it was last seen as active
+        status: "inactive",
       });
     }
   }
@@ -176,91 +261,150 @@ const scrapeCarWithPage = async (page, car) => {
 };
 
 (async () => {
-  // Stealth plugin handles most anti-detection automatically
-  const browser = await chromium.launch({
-    headless: false,
-    slowMo: 100,
-  });
+  const port = await findFreePort();
+  console.log("🚗 Classic Hunt - launching Chrome...");
+  console.log(`   Profile: ${PROFILE_DIR}`);
+  console.log(`   Debug port: ${port}\n`);
 
-  // Create browser context with Slovenian settings and persistent storage
-  const storageFile = './browser-state.json';
-  let storageState = undefined;
-  try {
-    await fs.access(storageFile);
-    storageState = storageFile;
-    console.log('📦 Loading saved browser session...');
-  } catch (e) {
-    console.log('📦 No saved session, starting fresh...');
+  const chromeProcess = await launchChrome(port);
+  console.log("✅ Chrome launched, connecting via CDP...");
+
+  const browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
+  console.log(`   Contexts: ${browser.contexts().length}`);
+
+  const context = browser.contexts()[0];
+  if (!context) {
+    console.error("❌ No browser context found. Exiting.");
+    chromeProcess.kill();
+    process.exit(1);
   }
 
-  const context = await browser.newContext({
-    locale: 'sl-SI',
-    timezoneId: 'Europe/Ljubljana',
-    storageState: storageState,
-  });
+  console.log(`   Pages in context: ${context.pages().length}`);
 
-  // Warm up: visit homepage first to establish session
-  console.log('🏠 Warming up - visiting homepage first...');
-  const warmupPage = await context.newPage();
-  await warmupPage.goto('https://www.avto.net', { waitUntil: 'load', timeout: 45000 });
-  await warmupPage.waitForTimeout(5000 + Math.random() * 3000);
+  // Get existing page or create one
+  let page = context.pages()[0];
+  if (!page) {
+    console.log("   No existing page, creating one...");
+    page = await context.newPage();
+  }
+  console.log(`   Page URL: ${page.url()}`);
 
-  // Scroll and click around on homepage
-  for (let i = 0; i < 10; i++) {
-    await warmupPage.mouse.wheel(0, 200 + Math.random() * 300);
-    await warmupPage.waitForTimeout(800 + Math.random() * 700);
-    await warmupPage.mouse.move(Math.random() * 500 + 100, Math.random() * 400 + 100, { steps: 5 });
+  // Warm up: visit homepage first
+  console.log("\n🏠 Visiting homepage...");
+  try {
+    await page.goto("https://www.avto.net", {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
+  } catch (err) {
+    console.log(`   goto error: ${err.message}`);
+  }
+  console.log(`   Page loaded: ${page.url()}`);
+  await new Promise((r) => setTimeout(r, 3000 + Math.random() * 2000));
+
+  const homepagePassed = await waitForCloudflare(page, "homepage");
+  if (!homepagePassed) {
+    console.log("❌ Could not pass homepage challenge. Exiting.");
+    await browser.close();
+    chromeProcess.kill();
+    process.exit(1);
   }
 
-  // Click on random safe elements (links, images)
-  try {
-    const clickableElements = await warmupPage.$$('a, img');
-    if (clickableElements.length > 0) {
-      const randomEl = clickableElements[Math.floor(Math.random() * Math.min(clickableElements.length, 10))];
-      await randomEl.hover();
-      await warmupPage.waitForTimeout(1000 + Math.random() * 1000);
-      await randomEl.click();
-      await warmupPage.waitForTimeout(4000 + Math.random() * 3000);
+  console.log("✅ Homepage OK\n");
 
-      // Scroll on the new page too
-      for (let i = 0; i < 5; i++) {
-        await warmupPage.mouse.wheel(0, 150 + Math.random() * 200);
-        await warmupPage.waitForTimeout(600 + Math.random() * 600);
+  // Filter enabled cars and apply defaults
+  const enabledCars = config.cars
+    .filter((c) => c.enabled !== false)
+    .map((c) => ({
+      brand: c.brand,
+      model: c.model,
+      minPrice: c.minPrice ?? 0,
+      maxPrice: c.maxPrice ?? 999999,
+      minYear: c.minYear ?? 0,
+      maxYear: c.maxYear ?? 2090,
+    }));
+
+  console.log(`🚗 Scraping ${enabledCars.length}/${config.cars.length} enabled models\n`);
+
+  for (let i = 0; i < enabledCars.length; i++) {
+    try {
+      await scrapeCarWithPage(page, enabledCars[i]);
+    } catch (error) {
+      console.log(
+        `❌ Error scraping ${enabledCars[i].brand} ${enabledCars[i].model}: ${error.message}`
+      );
+    }
+
+    if (i < enabledCars.length - 1) {
+      const delay = Math.floor(Math.random() * 5000) + 5000;
+      console.log(
+        `⏳ Waiting ${(delay / 1000).toFixed(1)}s before next search...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  await browser.close();
+  chromeProcess.kill();
+
+  // Generate report
+  console.log("\n📝 Generating report...");
+  const outputDir = "./output";
+  const files = await fs.readdir(outputDir);
+  const jsonFiles = files.filter((f) => f.endsWith(".json"));
+
+  let allAds = [];
+  for (const file of jsonFiles) {
+    const data = await fs.readJson(path.join(outputDir, file));
+    const [brand, model] = file.replace(".json", "").split("_");
+    const modelName = `${brand.charAt(0).toUpperCase() + brand.slice(1)} ${model.toUpperCase()}`;
+    for (const car of data) {
+      if (car.status === "active") {
+        allAds.push({ ...car, modelName });
       }
     }
-  } catch (e) {
-    // Ignore click errors
   }
 
-  await warmupPage.waitForTimeout(3000 + Math.random() * 3000);
-  await warmupPage.close();
-  console.log('✅ Warmup complete\n');
+  // Sort by model name, then by price
+  allAds.sort((a, b) => {
+    const modelCmp = a.modelName.localeCompare(b.modelName);
+    if (modelCmp !== 0) return modelCmp;
+    const priceA = parseFloat((a.price || "999999").replace(/[^0-9]/g, ""));
+    const priceB = parseFloat((b.price || "999999").replace(/[^0-9]/g, ""));
+    return priceA - priceB;
+  });
 
-  for (let i = 0; i < config.cars.length; i++) {
-    // Create a new page for each search
-    const page = await context.newPage();
+  const now = new Date();
+  const isoDate = now.toISOString().replace(/:/g, "-").replace(/\.\d+Z$/, "");
+  await fs.ensureDir("reports");
+  const reportName = `reports/report_${isoDate}.txt`;
 
-    try {
-      await scrapeCarWithPage(page, config.cars[i]);
-    } catch (error) {
-      console.log(`❌ Error scraping ${config.cars[i].brand} ${config.cars[i].model}: ${error.message}`);
-    } finally {
-      await page.close();
+  let report = `Classic Hunt Report - ${now.toLocaleString("sl-SI")}\n`;
+  report += `Active listings: ${allAds.length}\n`;
+  report += "=".repeat(120) + "\n\n";
+
+  let currentModel = "";
+  for (const ad of allAds) {
+    if (ad.modelName !== currentModel) {
+      currentModel = ad.modelName;
+      report += `--- ${currentModel} ---\n`;
     }
-
-    // Add random delay between 10-20 seconds (except after the last car)
-    if (i < config.cars.length - 1) {
-      const delay = Math.floor(Math.random() * 10000) + 10000; // 10000-20000ms
-      console.log(`⏳ Waiting ${(delay / 1000).toFixed(1)}s before next search...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
+    const parts = [
+      ad.price || "N/A",
+      ad.title || "N/A",
+      ad.year || "N/A",
+      ad.kilometers || "N/A",
+      ad.hp || "N/A",
+      ad.fuel || "N/A",
+      ad.gearbox || "N/A",
+      ad.phone || "N/A",
+      ad.link || "",
+    ];
+    report += parts.join(" | ") + "\n";
   }
 
-  // Save browser state for next run
-  await context.storageState({ path: './browser-state.json' });
-  console.log('💾 Browser session saved for next run');
+  await fs.writeFile(reportName, report);
+  console.log(`✅ Report saved to ${reportName}`);
 
-  await context.close();
-  await browser.close();
-  console.log("\n✨ All scraping completed!");
+  console.log("\n✨ All done!");
 })();

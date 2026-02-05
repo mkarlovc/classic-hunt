@@ -1,18 +1,18 @@
 {
   "name": "avtonet-scraper",
-  "version": "1.0.0",
-  "description": "Simple Playwright scraper for Avto.net car listings",
-  "main": "scraper.js",
+  "version": "2.0.0",
+  "description": "Classic car scraper for Avto.net with email notifications",
+  "main": "run.js",
   "type": "module",
   "scripts": {
-    "start": "node scraper.js",
-    "build": "node scraper.js && node visualize.js",
-    "visualize": "node visualize.js"
+    "start": "node run.js",
+    "scrape": "node scraper.js",
+    "visualize": "node visualize.js",
+    "email": "node -e \"import('./email-sender.js').then(m => import('fs-extra').then(fs => fs.readJson('./config.json').then(c => m.sendEmailReport(c))))\""
   },
   "dependencies": {
     "fs-extra": "^11.2.0",
-    "playwright": "^1.49.0",
-    "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "nodemailer": "^6.9.16",
+    "playwright": "^1.49.0"
   }
 }

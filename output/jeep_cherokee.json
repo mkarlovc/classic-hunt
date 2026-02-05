@@ -1,5 +1,47 @@
 [
   {
+    "title": "Jeep Cherokee 2.5 CRD Renegade",
+    "price": "6.500 €",
+    "year": "2003",
+    "kilometers": null,
+    "gearbox": "ročni",
+    "fuel": "diesel",
+    "phone": null,
+    "titleImageUrl": "https://images.avto.net/photo/21936118/1025270_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21936118&display=Jeep%20Cherokee",
+    "status": "active",
+    "first_seen": "2026-02-05T11:29:57.317Z",
+    "last_update": "2026-02-05T11:55:39.964Z"
+  },
+  {
+    "title": "Jeep Cherokee Country",
+    "price": "9.000 €",
+    "year": "1997",
+    "kilometers": "296000 km",
+    "gearbox": "ročni",
+    "fuel": "diesel",
+    "phone": null,
+    "titleImageUrl": "https://images.avto.net/photo/21923635/1055497_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21923635&display=Jeep%20Cherokee",
+    "status": "active",
+    "first_seen": "2026-02-05T11:29:57.317Z",
+    "last_update": "2026-02-05T11:55:39.964Z"
+  },
+  {
+    "title": "Jeep Cherokee 4.0 Limited-auto",
+    "price": "8.000 €",
+    "year": "2000",
+    "kilometers": "120000 km",
+    "gearbox": "avtomatski",
+    "fuel": "bencin",
+    "phone": null,
+    "titleImageUrl": "https://images.avto.net/photo/21752432/1078029_160.jpg",
+    "link": "https://www.avto.net/Ads/details.asp?id=21752432&display=Jeep%20Cherokee",
+    "status": "active",
+    "first_seen": "2025-12-01T21:37:26.843Z",
+    "last_update": "2026-02-05T11:55:39.964Z"
+  },
+  {
     "title": "Jeep Cherokee",
     "price": "3.700 €",
     "year": "2001",
@@ -7,19 +49,7 @@
     "gearbox": "ročni",
     "titleImageUrl": "https://images.avto.net/photo/21756061/1060307_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=21756061&display=Jeep%20Cherokee",
-    "status": "active",
-    "first_seen": "2025-12-01T21:37:26.843Z",
-    "last_update": "2025-12-01T21:37:26.843Z"
-  },
-  {
-    "title": "Jeep Cherokee 4.0 Limited-auto",
-    "price": "8.000 €",
-    "year": "2000",
-    "kilometers": null,
-    "gearbox": "avtomatski",
-    "titleImageUrl": "https://images.avto.net/photo/21752432/1078029_160.jpg",
-    "link": "https://www.avto.net/Ads/details.asp?id=21752432&display=Jeep%20Cherokee",
-    "status": "active",
+    "status": "inactive",
     "first_seen": "2025-12-01T21:37:26.843Z",
     "last_update": "2025-12-01T21:37:26.843Z"
   },
@@ -31,7 +61,7 @@
     "gearbox": "avtomatski",
     "titleImageUrl": "https://images.avto.net/photo/21710027/1042692_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=21710027&display=Jeep%20Cherokee",
-    "status": "active",
+    "status": "inactive",
     "first_seen": "2025-11-21T20:12:10.682Z",
     "last_update": "2025-12-01T21:37:26.843Z"
   },
@@ -43,7 +73,7 @@
     "gearbox": "avtomatski",
     "titleImageUrl": "https://images.avto.net/photo/21704858/1031417_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=21704858&display=Jeep%20Cherokee",
-    "status": "active",
+    "status": "inactive",
     "first_seen": "2025-11-21T20:12:10.682Z",
     "last_update": "2025-12-01T21:37:26.843Z"
   },
@@ -55,7 +85,7 @@
     "gearbox": "ročni",
     "titleImageUrl": "https://images.avto.net/photo/21687072/1038845_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=21687072&display=Jeep%20Cherokee",
-    "status": "active",
+    "status": "inactive",
     "first_seen": "2025-11-21T20:12:10.682Z",
     "last_update": "2025-12-01T21:37:26.843Z"
   },
@@ -67,7 +97,7 @@
     "gearbox": "avtomatski",
     "titleImageUrl": "https://images.avto.net/photo/21521663/1064362_160.jpg",
     "link": "https://www.avto.net/Ads/details.asp?id=21521663&display=Jeep%20Cherokee",
-    "status": "active",
+    "status": "inactive",
     "first_seen": "2025-11-21T20:12:10.682Z",
     "last_update": "2025-12-01T21:37:26.843Z"
   },

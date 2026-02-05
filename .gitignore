@@ -28,3 +28,4 @@ test-results/
 
 # Browser session
 browser-state.json
+.chrome-profile/

@@ -1,53 +1,19 @@
 {
   "newListingDays": 1,
+  "email": "mario.karlovcec@gmail.com",
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "YOUR_EMAIL@gmail.com",
+  "smtpPass": "YOUR_APP_PASSWORD",
   "cars": [
-    {
-      "brand": "Saab",
-      "model": "900",
-      "minPrice": 0,
-      "maxPrice": 999999,
-      "minYear": 0,
-      "maxYear": 2090
-    },
-    {
-      "brand": "AlfaRomeo",
-      "model": "GT",
-      "minPrice": 0,
-      "maxPrice": 999999,
-      "minYear": 0,
-      "maxYear": 2090
-    },
-    {
-      "brand": "AlfaRomeo",
-      "model": "GTV",
-      "minPrice": 0,
-      "maxPrice": 999999,
-      "minYear": 0,
-      "maxYear": 2090
-    },
-    {
-      "brand": "Mercedes-Benz",
-      "model": "CLK-Razred",
-      "minPrice": 0,
-      "maxPrice": 999999,
-      "minYear": 0,
-      "maxYear": 2090
-    },
-    {
-      "brand": "Nissan",
-      "model": "Pathfinder",
-      "minPrice": 0,
-      "maxPrice": 999999,
-      "minYear": 0,
-      "maxYear": 2010
-    },
-    {
-      "brand": "Jeep",
-      "model": "Cherokee",
-      "minPrice": 0,
-      "maxPrice": 999999,
-      "minYear": 0,
-      "maxYear": 2007
-    }
+    { "brand": "Saab",          "model": "900",          "enabled": true  },
+    { "brand": "AlfaRomeo",     "model": "GT",           "enabled": true  },
+    { "brand": "AlfaRomeo",     "model": "GTV",          "enabled": false  },
+    { "brand": "Mercedes-Benz", "model": "CLK-Razred",   "enabled": true  },
+    { "brand": "Nissan",        "model": "Pathfinder",   "enabled": false,  "maxYear": 2010 },
+    { "brand": "Jeep",          "model": "Cherokee",     "enabled": false,  "maxYear": 2007 },
+    { "brand": "Audi",          "model": "TT",          "enabled": true  },
+    { "brand": "MINI",          "model": "Cooper",          "enabled": true  },
+    { "brand": "Fiat",          "model": "500",          "enabled": true  }
   ]
 }
