@@ -1,138 +1,150 @@
-# Avto.net Scraper
+# Classic Hunt
 
-A web scraper for collecting car listings from Avto.net (Slovenia's largest car marketplace).
+Automated scraper for classic/cool cars on [Avto.net](https://www.avto.net) (Slovenian marketplace). Scrapes listings, generates LLM-powered summaries and personalized picks via Ollama, and sends daily email reports.
 
-## Features
+## Prerequisites
 
-- Scrapes multiple car brands/models based on configuration
-- Extracts: title, price, year, kilometers, gearbox type, and image URL
-- Saves results to JSON files
-- Generates an HTML visualization of results
-- Includes anti-detection measures to avoid bot blocking
+- **Node.js** v18+
+- **Google Chrome** installed at `/Applications/Google Chrome.app`
+- **Ollama** running locally with `mistral` model
 
-## Installation
+```bash
+ollama pull mistral
+ollama serve
+```
+
+## Setup
 
 ```bash
 npm install
+bash setup.sh    # Installs dependencies + configures scheduled tasks
 ```
 
 ## Configuration
 
-Edit `config.json` to specify which cars to scrape:
+### `config.json`
 
 ```json
 {
+  "newListingDays": 1,
+  "email": "you@gmail.com",
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "you@gmail.com",
+  "smtpPass": "your-16-char-app-password",
   "cars": [
-    {
-      "brand": "Saab",
-      "model": "900",
-      "minPrice": 0,
-      "maxPrice": 999999,
-      "minYear": 0,
-      "maxYear": 2090
-    }
+    { "brand": "Audi", "model": "TT", "enabled": true },
+    { "brand": "Fiat", "model": "500", "enabled": true, "maxYear": 2020 }
   ]
 }
 ```
 
-## Usage
+**Gmail App Password:** Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords) (requires 2-Step Verification), create an app password, paste it as `smtpPass`.
 
-### Scrape car listings
+### `prompt-config.json`
+
+LLM settings and prompt templates:
+
+| Field | Description |
+|---|---|
+| `ollamaUrl` | Ollama API endpoint (default: `http://localhost:11434/api/generate`) |
+| `ollamaModel` | Model name (default: `mistral`) |
+| `timeoutSeconds` | LLM request timeout (default: `120`) |
+| `picksMaxPrice` | Max price filter for recommendations (default: `6000`) |
+| `comparisonPrompt` | Template for comparing two reports |
+| `recommendationPrompt` | Template for top 5 car picks |
+
+## Commands
+
+### Run individually
 
 ```bash
-node scraper.js
+npm run scrape       # Scraper only
+npm run summarize    # LLM summary + top 5 picks (requires Ollama)
+npm run email        # Send email report
+npm run visualize    # Generate HTML visualization
 ```
 
-Results are saved to `output/` directory as JSON files (e.g., `saab_900.json`).
-
-### Visualize results
+### Run full pipeline
 
 ```bash
-node visualize.js
+npm start            # Scrape → Visualize → Summarize → Email
 ```
 
-Opens `results.html` showing all scraped listings with images, sorted by price.
+### Cron runner
 
-## Important Usage Guidelines
-
-⚠️ **CLOUDFLARE PROTECTION**: Avto.net uses Cloudflare to protect against bots. To avoid being blocked:
-
-### Best Practices
-
-1. **Run scraper MAXIMUM once per day**
-   - More frequent runs will trigger Cloudflare blocking
-   - If blocked, wait 24-48 hours before trying again
-
-2. **Limit number of cars**
-   - Scrape 2-3 car models maximum per run
-   - Too many searches in one session triggers blocking
-
-3. **Add delays between runs**
-   - Built-in random delays (3-7 seconds) between car searches
-   - Don't run the scraper multiple times in quick succession
-
-4. **If you get blocked**
-   - You'll see: `⚠️ Blocked by Cloudflare`
-   - Wait 24-48 hours before running again
-   - Try from a different network/IP if urgent
-   - Manual browsing on Avto.net still works during blocks
-
-### What Gets Scraped
-
-Each car listing includes:
-- `title` - Car model and variant
-- `price` - Listing price
-- `year` - Year of first registration
-- `kilometers` - Total kilometers driven
-- `gearbox` - Transmission type (ročni/avtomatski)
-- `titleImageUrl` - Thumbnail image URL
-- `link` - URL to full listing
-- `ts` - Timestamp when scraped (ISO 8601 format)
-
-## File Structure
-
-```
-avtonet-scraper/
-├── config.json          # Car search configuration
-├── scraper.js           # Main scraper
-├── visualize.js         # HTML generator
-├── output/              # Scraped JSON files
-├── results.html         # Generated visualization
-└── README.md           # This file
+```bash
+npm run cron:scrape  # Scrape + Visualize + Summarize (no email)
 ```
 
-## Troubleshooting
+## Scheduled Tasks (launchd)
 
-### "Blocked by Cloudflare"
-- **Cause**: Too many requests or automated behavior detected
-- **Solution**: Wait 24-48 hours, then reduce scraping frequency
+| Task | Schedule | Runner |
+|---|---|---|
+| Scrape + Summarize | Every 30 minutes | `com.classic-hunt.scrape.plist` |
+| Email report | Daily at 12:00 | `com.classic-hunt.email.plist` |
 
-### "No listings found"
-- **Cause**: Either genuinely no results, or Cloudflare blocking
-- **Solution**: Check the URL manually in a browser to confirm listings exist
+### Install
 
-### Scraper times out
-- **Cause**: Slow network or page taking too long to load
-- **Solution**: Increase timeout in scraper.js (line 16: `timeout: 45000`)
+```bash
+bash setup.sh
+```
 
-## Technical Details
+### Status
 
-- Built with Playwright (Chromium)
-- Uses anti-detection techniques:
-  - Slovenian locale and timezone
-  - Randomized mouse movements
-  - Realistic viewport and headers
-  - Navigator.webdriver override
-- Random delays between 3-7 seconds per car search
-- Handles pagination automatically (first page only)
+```bash
+launchctl list | grep classic-hunt
+```
 
-## Limitations
+### Stop
 
-- Only scrapes the first page of results (~20-30 listings per search)
-- Cannot bypass aggressive Cloudflare protection
-- Requires waiting periods between runs
-- Some fields (color, interior) not available in search results
+```bash
+launchctl unload ~/Library/LaunchAgents/com.classic-hunt.scrape.plist
+launchctl unload ~/Library/LaunchAgents/com.classic-hunt.email.plist
+```
+
+### Restart
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.classic-hunt.scrape.plist
+launchctl load ~/Library/LaunchAgents/com.classic-hunt.scrape.plist
+```
+
+### Logs
+
+```bash
+tail -f logs/scrape.log
+tail -f logs/email.log
+tail -f logs/scrape-error.log
+```
+
+## Output Files
+
+```
+output/
+  audi_tt.json                     # Raw scraped data per model
+  fiat_500.json
+reports/
+  report_2026-02-05T12-34-25.txt   # Full listing snapshot
+  summary_2026-02-05.txt           # LLM comparison of last two reports
+  picks_2026-02-05.txt             # LLM top 5 car recommendations
+```
+
+## Email Format
+
+1. **Comparison summary** — what changed since the last scrape
+2. **Full listing table** — all active cars grouped by model, with clickable links
+3. **Top 5 Picks** — LLM-recommended cars matching your preferences
+
+## Cloudflare Handling
+
+The scraper uses a real Chrome instance (not headless) to avoid detection. If Cloudflare presents a challenge:
+
+- Waits up to 2 minutes for manual solving
+- On failure, retries up to 5 times with increasing backoff (10s, 20s, 30s...)
+- If all retries fail for a model, skips it and continues with the rest
+- Same retry logic applies to the homepage warmup
 
 ## License
 
-For personal use only. Respect Avto.net's terms of service and rate limits.
+For personal use only. Respect Avto.net's terms of service.

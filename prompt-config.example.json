@@ -1,0 +1,10 @@
+{
+  "ollamaUrl": "http://localhost:11434/api/generate",
+  "ollamaModel": "mistral",
+  "timeoutSeconds": 120,
+  "maxReportChars": 15000,
+  "picksMaxPrice": 6000,
+  "comparisonPrompt": "You will be given two scraping reports from Avto.net (Slovenian car marketplace).\n\nTerminology: bencin=petrol, ročni=manual, avtomatski=automatic, Pokličite za ceno=Call for price.\n\nPREVIOUS REPORT ({{PREVIOUS_DATE}}):\n{{PREVIOUS_REPORT}}\n\nLATEST REPORT ({{LATEST_DATE}}):\n{{LATEST_REPORT}}\n\nRespond with EXACTLY one short paragraph (2-3 sentences), nothing else: what changed between the two reports — which specific cars are new, which were removed, any price changes. Mention car names and prices. Do not summarize the report itself, only the differences.",
+  "singleReportPrompt": "You are a brief automotive market analyst. You will be given a scraping report from Avto.net (Slovenian car marketplace).\n\nTerminology: bencin=petrol, ročni=manual, avtomatski=automatic, Pokličite za ceno=Call for price.\n\nREPORT ({{LATEST_DATE}}):\n{{LATEST_REPORT}}\n\nRespond with EXACTLY one short paragraph (one or two sentences), nothing else: summarize the report — total listings, price range across models, and general market feel.",
+  "recommendationPrompt": "Pick exactly 5 cars from the listings below.\n\nCRITICAL: You may ONLY pick cars that appear in the listings. Do NOT invent or imagine cars. Each pick MUST include the exact URL from the listing.\n\nRULES:\n- HARD BUDGET: maximum 5,500 EUR. Prefer under 3,000 EUR.\n- Strongly prefer petrol (bencin). Diesel is OK if it's a great deal. NO electric (elektr), NO hybrid, NO LPG (plin).\n- ONLY manual transmission (ročni). NO automatic (avtomatski).\n- Skip \"Pokličite za ceno\" listings.\n- Max 2 cars of the same model. Pick from different models.\n- Cool, characterful cars. Lower mileage is a plus.\n\nEach listing is formatted as: price | title | year | km | hp | fuel | gearbox | N/A | URL\n\nLISTINGS:\n{{LATEST_REPORT}}\n\nRespond with exactly 5 numbered lines, best deal first.\nFormat: number. title — price — year — km — why it's a good pick (1 sentence) — URL\nNothing else."
+}

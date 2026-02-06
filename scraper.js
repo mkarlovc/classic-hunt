@@ -101,46 +101,36 @@ const buildURL = (car) => {
   return `https://www.avto.net/Ads/results.asp?znamka=${car.brand}&model=${car.model}&modelID=&tip=katerikoli%20tip&znamka2=&model2=&tip2=katerikoli%20tip&znamka3=&model3=&tip3=katerikoli%20tip&cenaMin=${car.minPrice}&cenaMax=${car.maxPrice}&letnikMin=${car.minYear}&letnikMax=${car.maxYear}&bencin=0&starost2=999&oblika=0&ccmMin=0&ccmMax=99999&mocMin=&mocMax=&kmMin=0&kmMax=9999999&kwMin=0&kwMax=999&motortakt=&motorvalji=&lokacija=0&sirina=&dolzina=&dolzinaMIN=&dolzinaMAX=&nosilnostMIN=&nosilnostMAX=&sedezevMIN=&sedezevMAX=&lezisc=&presek=&premer=&col=&vijakov=&EToznaka=&vozilo=&airbag=&barva=&barvaint=&doseg=&BkType=&BkOkvir=&BkOkvirType=&Bk4=&EQ1=1000000000&EQ2=1000000000&EQ3=1000000000&EQ4=100000000&EQ5=1000000000&EQ6=1000000000&EQ7=1000000120&EQ8=101000000&EQ9=100000002&EQ10=100000000&KAT=1010000000&PIA=&PIAzero=&PIAOut=&PSLO=&akcija=&paketgarancije=&broker=&prikazkategorije=&kategorija=&ONLvid=&ONLnak=&zaloga=&arhiv=&presort=&tipsort=&stran=`;
 };
 
-const waitForCloudflare = async (page, label) => {
+class CloudflareError extends Error {
+  constructor(label) {
+    super(`Cloudflare challenge detected for ${label}`);
+    this.name = "CloudflareError";
+  }
+}
+
+const checkCloudflare = async (page, label) => {
   const content = await page.content();
   const blocked =
     content.includes("Sorry you have been blocked") ||
     content.includes("challenge-platform") ||
     (content.includes("Cloudflare") && content.includes("challenge"));
 
-  if (!blocked) return true;
-
-  console.log(`\n⚠️  Cloudflare challenge detected for ${label}`);
-  console.log(`    Please solve it in the browser window...`);
-
-  for (let i = 0; i < 120; i++) {
-    await new Promise((r) => setTimeout(r, 1000));
-    const newContent = await page.content();
-    const stillBlocked =
-      newContent.includes("Sorry you have been blocked") ||
-      newContent.includes("challenge-platform") ||
-      (newContent.includes("Cloudflare") && newContent.includes("challenge"));
-
-    if (!stillBlocked) {
-      console.log(`    ✅ Challenge solved! Continuing...`);
-      await new Promise((r) => setTimeout(r, 2000));
-      return true;
-    }
+  if (blocked) {
+    console.log(`\n⚠️  Cloudflare challenge detected for ${label}`);
+    throw new CloudflareError(label);
   }
-
-  console.log(`    ❌ Challenge not solved after 2 minutes - skipping`);
-  return false;
+  return true;
 };
 
 const scrapeCarWithPage = async (page, car) => {
   const URL = buildURL(car);
-  console.log(`\n🔍 Searching for ${car.brand} ${car.model}...`);
+  const label = `${car.brand} ${car.model}`;
+  console.log(`\n🔍 Searching for ${label}...`);
 
   await page.goto(URL, { waitUntil: "load", timeout: 60000 });
   await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
 
-  const passed = await waitForCloudflare(page, `${car.brand} ${car.model}`);
-  if (!passed) return;
+  await checkCloudflare(page, label);
 
   const count = await page.locator(".GO-Results-Row").count();
   if (count === 0) {
@@ -195,6 +185,11 @@ const scrapeCarWithPage = async (page, car) => {
       );
       const fuel = fuelMatch ? fuelMatch[0] : null;
 
+      const colorMatch = allText.match(
+        /(?:bela|črna|siva|srebrna|rdeča|modra|zelena|rumena|oranžna|rjava|bež|vijolična|bordo|grafitna|antracitna|zlatna|temno\s*(?:modra|siva|zelena|rdeča)|svetlo\s*(?:modra|siva|zelena))/i
+      );
+      const color = colorMatch ? colorMatch[0] : null;
+
       // Slovenian phone numbers: 0X0 XXX XXX, 0X XXX XX XX, +386 ...
       const phoneMatch = allText.match(
         /(?:\+386[\s-]?\d[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|0[1-7]\d[\s-]?\d{3}[\s-]?\d{3}|0[1-7][\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2})/
@@ -221,6 +216,7 @@ const scrapeCarWithPage = async (page, car) => {
         hp,
         gearbox,
         fuel,
+        color,
         phone,
         titleImageUrl,
         link: row.querySelector("a")?.href || null,
@@ -270,7 +266,9 @@ const scrapeCarWithPage = async (page, car) => {
   console.log(`💾 Saved results to output/${filename}`);
 };
 
-(async () => {
+const MAX_RESTARTS = 5;
+
+async function runScrapeSession() {
   const port = await findFreePort();
   console.log("🚗 Classic Hunt - launching Chrome...");
   console.log(`   Profile: ${PROFILE_DIR}`);
@@ -286,12 +284,11 @@ const scrapeCarWithPage = async (page, car) => {
   if (!context) {
     console.error("❌ No browser context found. Exiting.");
     chromeProcess.kill();
-    process.exit(1);
+    throw new Error("No browser context");
   }
 
   console.log(`   Pages in context: ${context.pages().length}`);
 
-  // Get existing page or create one
   let page = context.pages()[0];
   if (!page) {
     console.log("   No existing page, creating one...");
@@ -299,63 +296,74 @@ const scrapeCarWithPage = async (page, car) => {
   }
   console.log(`   Page URL: ${page.url()}`);
 
-  // Warm up: visit homepage first
-  console.log("\n🏠 Visiting homepage...");
   try {
-    await page.goto("https://www.avto.net", {
-      waitUntil: "domcontentloaded",
-      timeout: 60000,
-    });
-  } catch (err) {
-    console.log(`   goto error: ${err.message}`);
-  }
-  console.log(`   Page loaded: ${page.url()}`);
-  await new Promise((r) => setTimeout(r, 3000 + Math.random() * 2000));
+    // Warm up: visit homepage first
+    console.log("\n🏠 Visiting homepage...");
+    try {
+      await page.goto("https://www.avto.net", {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
+      });
+    } catch (err) {
+      console.log(`   goto error: ${err.message}`);
+    }
+    console.log(`   Page loaded: ${page.url()}`);
+    await new Promise((r) => setTimeout(r, 3000 + Math.random() * 2000));
 
-  const homepagePassed = await waitForCloudflare(page, "homepage");
-  if (!homepagePassed) {
-    console.log("❌ Could not pass homepage challenge. Exiting.");
+    await checkCloudflare(page, "homepage");
+    console.log("✅ Homepage OK\n");
+
+    // Filter enabled cars and apply defaults
+    const enabledCars = config.cars
+      .filter((c) => c.enabled !== false)
+      .map((c) => ({
+        brand: c.brand,
+        model: c.model,
+        minPrice: c.minPrice ?? 0,
+        maxPrice: c.maxPrice ?? 999999,
+        minYear: c.minYear ?? 0,
+        maxYear: c.maxYear ?? 2090,
+      }));
+
+    console.log(`🚗 Scraping ${enabledCars.length}/${config.cars.length} enabled models\n`);
+
+    for (let i = 0; i < enabledCars.length; i++) {
+      await scrapeCarWithPage(page, enabledCars[i]);
+
+      if (i < enabledCars.length - 1) {
+        const delay = Math.floor(Math.random() * 5000) + 5000;
+        console.log(
+          `⏳ Waiting ${(delay / 1000).toFixed(1)}s before next search...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  } finally {
     await browser.close();
     chromeProcess.kill();
-    process.exit(1);
   }
+}
 
-  console.log("✅ Homepage OK\n");
-
-  // Filter enabled cars and apply defaults
-  const enabledCars = config.cars
-    .filter((c) => c.enabled !== false)
-    .map((c) => ({
-      brand: c.brand,
-      model: c.model,
-      minPrice: c.minPrice ?? 0,
-      maxPrice: c.maxPrice ?? 999999,
-      minYear: c.minYear ?? 0,
-      maxYear: c.maxYear ?? 2090,
-    }));
-
-  console.log(`🚗 Scraping ${enabledCars.length}/${config.cars.length} enabled models\n`);
-
-  for (let i = 0; i < enabledCars.length; i++) {
+(async () => {
+  for (let attempt = 1; attempt <= MAX_RESTARTS; attempt++) {
     try {
-      await scrapeCarWithPage(page, enabledCars[i]);
-    } catch (error) {
-      console.log(
-        `❌ Error scraping ${enabledCars[i].brand} ${enabledCars[i].model}: ${error.message}`
-      );
-    }
-
-    if (i < enabledCars.length - 1) {
-      const delay = Math.floor(Math.random() * 5000) + 5000;
-      console.log(
-        `⏳ Waiting ${(delay / 1000).toFixed(1)}s before next search...`
-      );
-      await new Promise((resolve) => setTimeout(resolve, delay));
+      await runScrapeSession();
+      break; // success — exit loop
+    } catch (err) {
+      if (err instanceof CloudflareError && attempt < MAX_RESTARTS) {
+        const wait = attempt * 30;
+        console.log(`\n🔄 Restarting Chrome (attempt ${attempt}/${MAX_RESTARTS}) in ${wait}s...`);
+        await new Promise((r) => setTimeout(r, wait * 1000));
+      } else {
+        console.error(`\n❌ ${err.message}`);
+        if (attempt >= MAX_RESTARTS) {
+          console.error("All restart attempts failed. Exiting.");
+          process.exit(1);
+        }
+        throw err;
+      }
     }
   }
-
-  await browser.close();
-  chromeProcess.kill();
 
   // Generate report
   console.log("\n📝 Generating report...");
@@ -398,9 +406,9 @@ const scrapeCarWithPage = async (page, car) => {
   });
 
   const now = new Date();
-  const isoDate = now.toISOString().replace(/:/g, "-").replace(/\.\d+Z$/, "");
+  const timestamp = now.toISOString().slice(0, 19).replace(/:/g, "-");
   await fs.ensureDir("reports");
-  const reportName = `reports/report_${isoDate}.txt`;
+  const reportName = `reports/report_${timestamp}.txt`;
 
   let report = `Classic Hunt Report - ${now.toLocaleString("sl-SI")}\n`;
   report += `Active listings: ${allAds.length}\n`;
@@ -420,6 +428,7 @@ const scrapeCarWithPage = async (page, car) => {
       ad.hp || "N/A",
       ad.fuel || "N/A",
       ad.gearbox || "N/A",
+      ad.color || "N/A",
       ad.phone || "N/A",
       ad.link || "",
     ];

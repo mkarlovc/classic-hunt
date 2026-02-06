@@ -8,7 +8,10 @@
     "start": "node run.js",
     "scrape": "node scraper.js",
     "visualize": "node visualize.js",
-    "email": "node -e \"import('./email-sender.js').then(m => import('fs-extra').then(fs => fs.readJson('./config.json').then(c => m.sendEmailReport(c))))\""
+    "summarize": "node summarize.js",
+    "email": "node run-email.js",
+    "cron:scrape": "node run-scrape.js",
+    "setup": "bash setup.sh"
   },
   "dependencies": {
     "fs-extra": "^11.2.0",

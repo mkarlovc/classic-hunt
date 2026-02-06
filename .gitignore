@@ -26,6 +26,14 @@ npm-debug.log*
 playwright-report/
 test-results/
 
+# Config (contains credentials)
+config.json
+prompt-config.json
+
 # Browser session
 browser-state.json
 .chrome-profile/
+
+# Output data
+output/
+reports/
