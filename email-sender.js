@@ -75,7 +75,7 @@ function getNewListingUrls() {
 function parseReport(reportText) {
   const groups = [];
   let currentGroup = null;
-  const headerMatch = reportText.match(/^(.+)\nActive listings: (\d+)/);
+  const headerMatch = reportText.match(/^(.+)\n(?:Scraped:.+\n)?Active listings: (\d+)/);
   const totalActive = headerMatch ? parseInt(headerMatch[2]) : 0;
   const reportDate = headerMatch ? headerMatch[1].replace("Classic Hunt Report - ", "") : "";
 
