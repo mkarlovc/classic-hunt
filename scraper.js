@@ -345,6 +345,7 @@ async function runScrapeSession() {
 }
 
 (async () => {
+  const scrapeStarted = new Date();
   for (let attempt = 1; attempt <= MAX_RESTARTS; attempt++) {
     try {
       await runScrapeSession();
@@ -411,6 +412,7 @@ async function runScrapeSession() {
   const reportName = `reports/report_${timestamp}.txt`;
 
   let report = `Classic Hunt Report - ${now.toLocaleString("sl-SI")}\n`;
+  report += `Scraped: ${scrapeStarted.toISOString()}\n`;
   report += `Active listings: ${allAds.length}\n`;
   report += "=".repeat(120) + "\n\n";
 

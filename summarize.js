@@ -180,6 +180,36 @@ function filterByPrice(reportContent, maxPrice) {
   return result;
 }
 
+function extractUrlsFromReport(reportContent) {
+  const urls = new Set();
+  for (const line of reportContent.split("\n")) {
+    if (!line.includes(" | ")) continue;
+    const match = line.match(/(https?:\/\/\S+)/);
+    if (match) urls.add(match[1]);
+  }
+  return urls;
+}
+
+function extractTimestampFromFilename(filename) {
+  const match = filename.match(/report_(.+)\.txt/);
+  return match ? match[1] : filename;
+}
+
+function diffReports(latest, previous) {
+  const prevUrls = extractUrlsFromReport(previous.content);
+  const newListings = [];
+
+  for (const line of latest.content.split("\n")) {
+    if (!line.includes(" | ")) continue;
+    const match = line.match(/(https?:\/\/\S+)/);
+    if (match && !prevUrls.has(match[1])) {
+      newListings.push(line);
+    }
+  }
+
+  return newListings;
+}
+
 function makeHeader(title, model) {
   const now = new Date();
   return `${title} - ${now.toLocaleString("sl-SI")}\nModel: ${model}\n${"=".repeat(60)}\n\n`;
@@ -209,6 +239,28 @@ export async function generateSummary() {
     console.log(`Only one report found — skipping comparison`);
   }
 
+  // --- 1b. Programmatic diff: new listings ---
+  let diffPath = null;
+  if (previous) {
+    const newListings = diffReports(latest, previous);
+    const prevTs = extractTimestampFromFilename(previous.name);
+    const latestTs = extractTimestampFromFilename(latest.name);
+    diffPath = join(__dirname, "reports", `${prevTs}_${latestTs}_new.txt`);
+
+    if (newListings.length > 0) {
+      const diffContent = `New listings: ${newListings.length}\n` +
+        `Previous: ${previous.name}\n` +
+        `Latest: ${latest.name}\n` +
+        `${"=".repeat(80)}\n\n` +
+        newListings.join("\n") + "\n";
+      await fs.writeFile(diffPath, diffContent);
+      console.log(`${newListings.length} new listing(s) saved to: ${diffPath}`);
+    } else {
+      await fs.writeFile(diffPath, `No new listings.\nPrevious: ${previous.name}\nLatest: ${latest.name}\n`);
+      console.log(`No new listings between reports.`);
+    }
+  }
+
   // --- 2. Top 5 picks (budget-filtered) ---
   const maxPrice = config.picksMaxPrice || 6000;
   const filteredContent = filterByPrice(latest.content, maxPrice);
@@ -223,7 +275,7 @@ export async function generateSummary() {
   await fs.writeFile(picksPath, makeHeader("Classic Hunt Top Picks", config.ollamaModel) + picks);
   console.log(`Picks saved to: ${picksPath}`);
 
-  return { summaryPath, picksPath };
+  return { summaryPath, picksPath, diffPath };
 }
 
 // Run standalone

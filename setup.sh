@@ -43,20 +43,25 @@ fi
 sed "s|/usr/local/bin/node|$NODE_PATH|g" "$SCRIPT_DIR/$SCRAPE_PLIST" > "$AGENTS_DIR/$SCRAPE_PLIST"
 launchctl unload "$AGENTS_DIR/$SCRAPE_PLIST" 2>/dev/null || true
 launchctl load "$AGENTS_DIR/$SCRAPE_PLIST"
-echo "[OK] Installed scrape agent (every 30 min)"
+echo "[OK] Installed scrape agent (every hour)"
 
 # Install email plist (daily at noon)
 sed "s|/usr/local/bin/node|$NODE_PATH|g" "$SCRIPT_DIR/$EMAIL_PLIST" > "$AGENTS_DIR/$EMAIL_PLIST"
 launchctl unload "$AGENTS_DIR/$EMAIL_PLIST" 2>/dev/null || true
 launchctl load "$AGENTS_DIR/$EMAIL_PLIST"
-echo "[OK] Installed email agent (daily at 12:00)"
+echo "[OK] Installed email agent (00:35, 7:00, 12:00, 21:00)"
+
+# Keep Mac awake on AC power so cron jobs run
+pkill -f "caffeinate -s" 2>/dev/null || true
+caffeinate -s &
+echo "[OK] Caffeinate started (prevents sleep on AC power)"
 
 echo ""
 echo "Setup complete!"
 echo ""
 echo "Schedule:"
-echo "  Scrape + Summarize:  every 30 minutes"
-echo "  Email report:        daily at 12:00"
+echo "  Scrape + Summarize:  every hour"
+echo "  Email report:        00:35, 7:00, 12:00, 21:00"
 echo ""
 echo "IMPORTANT: Configure config.json before first run:"
 echo "  - smtpUser: Your Gmail address"

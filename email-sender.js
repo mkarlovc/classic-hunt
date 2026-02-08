@@ -44,6 +44,34 @@ function getLatestReport() {
   return fs.readFileSync(path.join(reportsDir, files[0]), "utf-8");
 }
 
+function extractScrapeTime(reportText) {
+  const match = reportText.match(/^Scraped:\s*(.+)$/m);
+  if (!match) return null;
+  const d = new Date(match[1].trim());
+  if (isNaN(d)) return null;
+  return d.toLocaleString("sl-SI", {
+    year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+function getNewListingUrls() {
+  if (!fs.existsSync(reportsDir)) return new Set();
+  const files = fs
+    .readdirSync(reportsDir)
+    .filter((f) => f.endsWith("_new.txt"))
+    .sort()
+    .reverse();
+  if (files.length === 0) return new Set();
+  const content = fs.readFileSync(path.join(reportsDir, files[0]), "utf-8");
+  const urls = new Set();
+  for (const line of content.split("\n")) {
+    const match = line.match(/(https?:\/\/\S+)/);
+    if (match) urls.add(match[1]);
+  }
+  return urls;
+}
+
 function parseReport(reportText) {
   const groups = [];
   let currentGroup = null;
@@ -96,11 +124,16 @@ export async function sendEmailReport(config) {
   const llmSummary = getLatestSummary();
   const llmPicks = getLatestPicks();
   const fullReport = getLatestReport();
+  const scrapeTime = fullReport ? extractScrapeTime(fullReport) : null;
   const parsed = fullReport ? parseReport(fullReport) : null;
   const totalActive = parsed ? parsed.totalActive : 0;
+  const newUrls = getNewListingUrls();
 
   // --- Plain text version ---
   let textContent = `Classic Hunt - ${date}\n`;
+  if (scrapeTime) {
+    textContent += `Data scraped: ${scrapeTime}\n`;
+  }
   textContent += `${"=".repeat(50)}\n\n`;
 
   if (llmSummary) {
@@ -113,10 +146,11 @@ export async function sendEmailReport(config) {
     for (const group of parsed.groups) {
       textContent += `--- ${group.name} (${group.cars.length}) ---\n`;
       for (const car of group.cars) {
+        const isNew = newUrls.has(car.url);
         const details = [car.hp, car.fuel, car.gearbox, car.color]
           .filter((v) => v && v !== "N/A")
           .join(" | ");
-        textContent += `  ${car.price} | ${car.title} | ${car.year} | ${car.km} | ${details}\n`;
+        textContent += `  ${isNew ? "[NEW] " : ""}${car.price} | ${car.title} | ${car.year} | ${car.km} | ${details}\n`;
         textContent += `  ${car.url}\n\n`;
       }
     }
@@ -152,6 +186,8 @@ export async function sendEmailReport(config) {
     .title-cell a { color: #333; text-decoration: none; }
     .title-cell a:hover { color: #0066ff; text-decoration: underline; }
     .meta { color: #888; font-size: 12px; }
+    tr.new-listing td { background: #fffde7; }
+    .new-badge { display: inline-block; background: #f9a825; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
     .picks-title { font-size: 18px; font-weight: 700; color: #222; margin-top: 30px; padding: 8px 0; border-bottom: 2px solid #e8a000; margin-bottom: 12px; }
     .picks-box { background: #fffbf0; border-left: 4px solid #e8a000; padding: 14px 16px; border-radius: 4px; font-size: 14px; line-height: 1.8; color: #333; white-space: pre-wrap; }
   </style>
@@ -160,6 +196,7 @@ export async function sendEmailReport(config) {
   <div class="container">
     <h1>Classic Hunt</h1>
     <div class="date">${date}</div>
+${scrapeTime ? `    <div class="date" style="margin-top: -4px;">Data scraped: ${escapeHtml(scrapeTime)}</div>\n` : ""}
 `;
 
   if (llmSummary) {
@@ -177,12 +214,14 @@ export async function sendEmailReport(config) {
         <tr><th>Price</th><th>Car</th><th>Year</th><th>Km</th><th>Details</th></tr>
 `;
       for (const car of group.cars) {
+        const isNew = newUrls.has(car.url);
         const details = [car.hp, car.fuel, car.gearbox, car.color]
           .filter((v) => v && v !== "N/A")
           .join(" | ");
-        htmlContent += `        <tr>
+        const badge = isNew ? `<span class="new-badge">NEW</span>` : "";
+        htmlContent += `        <tr${isNew ? ` class="new-listing"` : ""}>
           <td class="price-cell">${escapeHtml(car.price)}</td>
-          <td class="title-cell"><a href="${escapeHtml(car.url)}">${escapeHtml(car.title)}</a></td>
+          <td class="title-cell">${badge}<a href="${escapeHtml(car.url)}">${escapeHtml(car.title)}</a></td>
           <td>${escapeHtml(car.year)}</td>
           <td>${escapeHtml(car.km)}</td>
           <td class="meta">${escapeHtml(details)}</td>

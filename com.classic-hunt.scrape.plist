@@ -15,7 +15,7 @@
     <string>/Users/mariokarlovcec/Learn/github/classic-hunt</string>
 
     <key>StartInterval</key>
-    <integer>1800</integer>
+    <integer>3600</integer>
 
     <key>StandardOutPath</key>
     <string>/Users/mariokarlovcec/Learn/github/classic-hunt/logs/scrape.log</string>
