@@ -108,18 +108,30 @@ class CloudflareError extends Error {
   }
 }
 
-const checkCloudflare = async (page, label) => {
+const isCloudflareBlocked = async (page) => {
   const content = await page.content();
-  const blocked =
+  return (
     content.includes("Sorry you have been blocked") ||
     content.includes("challenge-platform") ||
-    (content.includes("Cloudflare") && content.includes("challenge"));
+    (content.includes("Cloudflare") && content.includes("challenge"))
+  );
+};
 
-  if (blocked) {
-    console.log(`\n⚠️  Cloudflare challenge detected for ${label}`);
-    throw new CloudflareError(label);
+const checkCloudflare = async (page, label) => {
+  if (!(await isCloudflareBlocked(page))) return true;
+
+  console.log(`\n⚠️  Cloudflare challenge detected for ${label}, waiting up to 60s...`);
+  for (let i = 1; i <= 6; i++) {
+    await new Promise((r) => setTimeout(r, 10000));
+    if (!(await isCloudflareBlocked(page))) {
+      console.log(`✅ Cloudflare challenge cleared after ${i * 10}s`);
+      return true;
+    }
+    console.log(`   Still blocked... (${i * 10}s)`);
   }
-  return true;
+
+  console.log(`❌ Cloudflare challenge not resolved after 60s, restarting...`);
+  throw new CloudflareError(label);
 };
 
 const scrapeCarWithPage = async (page, car) => {
