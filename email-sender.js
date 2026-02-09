@@ -55,6 +55,12 @@ function extractScrapeTime(reportText) {
   });
 }
 
+function extractReportTime(reportText) {
+  const match = reportText.match(/^Classic Hunt Report - (.+)$/m);
+  if (!match) return null;
+  return match[1].trim();
+}
+
 function getNewListingUrls() {
   if (!fs.existsSync(reportsDir)) return new Set();
   const files = fs
@@ -125,6 +131,7 @@ export async function sendEmailReport(config) {
   const llmPicks = getLatestPicks();
   const fullReport = getLatestReport();
   const scrapeTime = fullReport ? extractScrapeTime(fullReport) : null;
+  const reportTime = fullReport ? extractReportTime(fullReport) : null;
   const parsed = fullReport ? parseReport(fullReport) : null;
   const totalActive = parsed ? parsed.totalActive : 0;
   const newUrls = getNewListingUrls();
@@ -133,6 +140,9 @@ export async function sendEmailReport(config) {
   let textContent = `Classic Hunt - ${date}\n`;
   if (scrapeTime) {
     textContent += `Data scraped: ${scrapeTime}\n`;
+  }
+  if (reportTime) {
+    textContent += `Report created: ${reportTime}\n`;
   }
   textContent += `${"=".repeat(50)}\n\n`;
 
@@ -196,7 +206,7 @@ export async function sendEmailReport(config) {
   <div class="container">
     <h1>Classic Hunt</h1>
     <div class="date">${date}</div>
-${scrapeTime ? `    <div class="date" style="margin-top: -4px;">Data scraped: ${escapeHtml(scrapeTime)}</div>\n` : ""}
+${scrapeTime ? `    <div class="date" style="margin-top: -4px;">Data scraped: ${escapeHtml(scrapeTime)}</div>\n` : ""}${reportTime ? `    <div class="date" style="margin-top: -4px;">Report created: ${escapeHtml(reportTime)}</div>\n` : ""}
 `;
 
   if (llmSummary) {
