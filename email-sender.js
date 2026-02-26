@@ -55,6 +55,29 @@ function extractScrapeTime(reportText) {
   });
 }
 
+function getScrapeTimeFromOutput() {
+  const outputDir = "./output";
+  if (!fs.existsSync(outputDir)) return null;
+  let latest = null;
+  for (const file of fs.readdirSync(outputDir).filter((f) => f.endsWith(".json"))) {
+    try {
+      const data = fs.readJsonSync(path.join(outputDir, file));
+      for (const car of data) {
+        if (car.last_update && (!latest || car.last_update > latest)) {
+          latest = car.last_update;
+        }
+      }
+    } catch { /* skip */ }
+  }
+  if (!latest) return null;
+  const d = new Date(latest);
+  if (isNaN(d)) return null;
+  return d.toLocaleString("sl-SI", {
+    year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 function extractReportTime(reportText) {
   const match = reportText.match(/^Classic Hunt Report - (.+)$/m);
   if (!match) return null;
@@ -130,7 +153,7 @@ export async function sendEmailReport(config) {
   const llmSummary = getLatestSummary();
   const llmPicks = getLatestPicks();
   const fullReport = getLatestReport();
-  const scrapeTime = fullReport ? extractScrapeTime(fullReport) : null;
+  const scrapeTime = (fullReport && extractScrapeTime(fullReport)) || getScrapeTimeFromOutput();
   const reportTime = fullReport ? extractReportTime(fullReport) : null;
   const parsed = fullReport ? parseReport(fullReport) : null;
   const totalActive = parsed ? parsed.totalActive : 0;
