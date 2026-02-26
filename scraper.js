@@ -132,68 +132,148 @@ const humanMove = async (page, x, y) => {
   await new Promise((r) => setTimeout(r, 100 + Math.random() * 300));
 };
 
+const waitForTurnstileIframe = async (page, timeoutMs = 10000) => {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    // Check Playwright frames (covers cross-origin)
+    const cfFrame = page.frames().find((f) => {
+      const url = f.url();
+      return url.includes("challenges.cloudflare.com") || url.includes("turnstile");
+    });
+    if (cfFrame) return cfFrame;
+
+    // Check DOM iframes (covers same-origin or src-based)
+    const iframeSrc = await page.evaluate(() => {
+      const iframes = document.querySelectorAll("iframe");
+      for (const iframe of iframes) {
+        const src = iframe.src || "";
+        if (src.includes("cloudflare") || src.includes("turnstile") || src.includes("challenge")) {
+          return src;
+        }
+      }
+      return null;
+    });
+    if (iframeSrc) {
+      // Re-check frames now that we know there's a matching iframe
+      const frame = page.frames().find((f) => f.url().includes("cloudflare") || f.url().includes("turnstile"));
+      if (frame) return frame;
+    }
+
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return null;
+};
+
 const solveCloudflareChallenge = async (page) => {
   console.log("   🔧 Attempting to solve Cloudflare challenge...");
 
-  // Strategy A: Find Turnstile iframe and click its checkbox area
-  try {
-    const frames = page.frames();
-    const cfFrame = frames.find((f) =>
-      f.url().includes("challenges.cloudflare.com")
-    );
-    if (cfFrame) {
-      console.log("   Found Cloudflare challenge iframe");
-      const iframeElement = await page.$('iframe[src*="challenges.cloudflare.com"]');
-      if (iframeElement) {
-        const box = await iframeElement.boundingBox();
+  // Diagnostic: log all frames and iframes on the page
+  const frameUrls = page.frames().map((f) => f.url());
+  console.log(`   Frames (${frameUrls.length}): ${frameUrls.map((u) => u.slice(0, 80)).join(" | ")}`);
+  const iframeSrcs = await page.evaluate(() =>
+    [...document.querySelectorAll("iframe")].map((el) => ({
+      src: el.src || "(empty)",
+      id: el.id || "(no-id)",
+      width: el.offsetWidth,
+      height: el.offsetHeight,
+    }))
+  );
+  console.log(`   DOM iframes: ${JSON.stringify(iframeSrcs)}`);
+
+  // Wait for the Turnstile iframe to appear (it loads async)
+  console.log("   Waiting for Turnstile iframe...");
+  const cfFrame = await waitForTurnstileIframe(page);
+
+  // Strategy A: Find Turnstile iframe and click its checkbox area via bounding box
+  if (cfFrame) {
+    console.log(`   Found challenge frame: ${cfFrame.url().slice(0, 80)}`);
+    try {
+      // Find the iframe element in the DOM matching this frame
+      const iframeElement = await page.evaluateHandle((frameUrl) => {
+        const iframes = document.querySelectorAll("iframe");
+        for (const iframe of iframes) {
+          if (iframe.src && frameUrl.includes(new URL(iframe.src).hostname)) return iframe;
+        }
+        // Fallback: find any iframe with cloudflare/turnstile in src
+        for (const iframe of iframes) {
+          if ((iframe.src || "").match(/cloudflare|turnstile|challenge/)) return iframe;
+        }
+        return null;
+      }, cfFrame.url());
+
+      const element = iframeElement.asElement();
+      if (element) {
+        const box = await element.boundingBox();
         if (box) {
-          // Checkbox is typically in the left portion of the iframe
           const clickX = box.x + 30;
           const clickY = box.y + box.height / 2;
+          console.log(`   Iframe box: ${JSON.stringify(box)}, clicking at (${clickX.toFixed(0)}, ${clickY.toFixed(0)})`);
           await humanMove(page, clickX, clickY);
           await page.mouse.click(clickX, clickY);
           console.log("   Clicked Turnstile iframe checkbox area");
           await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
           return;
+        } else {
+          console.log("   iframe element found but boundingBox is null (not visible?)");
         }
+      } else {
+        console.log("   Could not find iframe DOM element for frame");
       }
+    } catch (err) {
+      console.log(`   Strategy A (iframe bbox click) failed: ${err.message}`);
     }
-  } catch (err) {
-    console.log(`   Strategy A (iframe click) failed: ${err.message}`);
-  }
 
-  // Strategy B: Click checkbox inside the Cloudflare frame directly
-  try {
-    const frames = page.frames();
-    const cfFrame = frames.find((f) =>
-      f.url().includes("challenges.cloudflare.com")
-    );
-    if (cfFrame) {
-      for (const selector of ['input[type="checkbox"]', '[role="checkbox"]', '.mark']) {
+    // Strategy B: Click checkbox inside the Cloudflare frame directly
+    try {
+      for (const selector of ['input[type="checkbox"]', '[role="checkbox"]', '.mark', '.ctp-checkbox-label', '#challenge-stage', 'body']) {
         const el = await cfFrame.$(selector);
         if (el) {
-          await el.click();
-          console.log(`   Clicked ${selector} inside challenge frame`);
+          if (selector === 'body') {
+            // For body, click near the top-left where checkbox usually is
+            const box = await el.boundingBox();
+            if (box) {
+              await cfFrame.click(selector, { position: { x: 28, y: 28 } });
+            }
+          } else {
+            await el.click();
+          }
+          console.log(`   Clicked '${selector}' inside challenge frame`);
+          await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
+          return;
+        }
+      }
+      console.log("   No clickable element found inside challenge frame");
+    } catch (err) {
+      console.log(`   Strategy B (frame selector) failed: ${err.message}`);
+    }
+  } else {
+    console.log("   No Turnstile iframe found after waiting");
+  }
+
+  // Strategy C: Click any visible turnstile widget or "Verify" text on the main page
+  try {
+    for (const selector of [
+      '#turnstile-wrapper',
+      '[class*="turnstile"]',
+      '[id*="turnstile"]',
+      '[class*="cf-turnstile"]',
+      'text="Verify you are human"',
+      'text="I am human"',
+    ]) {
+      const el = await page.$(selector);
+      if (el) {
+        const box = await el.boundingBox();
+        if (box) {
+          await humanMove(page, box.x + 30, box.y + box.height / 2);
+          await page.mouse.click(box.x + 30, box.y + box.height / 2);
+          console.log(`   Clicked '${selector}' on main page`);
           await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
           return;
         }
       }
     }
   } catch (err) {
-    console.log(`   Strategy B (frame selector) failed: ${err.message}`);
-  }
-
-  // Strategy C: Click "Verify you are human" label/element
-  try {
-    const verifyEl = await page.$('text="Verify you are human"');
-    if (verifyEl) {
-      await verifyEl.click();
-      console.log("   Clicked 'Verify you are human' element");
-      await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
-      return;
-    }
-  } catch (err) {
-    console.log(`   Strategy C (label click) failed: ${err.message}`);
+    console.log(`   Strategy C (main page selector) failed: ${err.message}`);
   }
 
   console.log("   No solvable challenge element found");
@@ -211,6 +291,8 @@ const checkCloudflare = async (page, label) => {
   }
 
   if (challengeType === "turnstile") {
+    // Give the Turnstile widget time to render before first attempt
+    await new Promise((r) => setTimeout(r, 3000));
     for (let attempt = 1; attempt <= 3; attempt++) {
       await solveCloudflareChallenge(page);
       await new Promise((r) => setTimeout(r, 5000));
