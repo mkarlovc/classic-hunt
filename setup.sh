@@ -43,7 +43,7 @@ fi
 sed "s|/usr/local/bin/node|$NODE_PATH|g" "$SCRIPT_DIR/$SCRAPE_PLIST" > "$AGENTS_DIR/$SCRAPE_PLIST"
 launchctl unload "$AGENTS_DIR/$SCRAPE_PLIST" 2>/dev/null || true
 launchctl load "$AGENTS_DIR/$SCRAPE_PLIST"
-echo "[OK] Installed scrape agent (every hour)"
+echo "[OK] Installed scrape agent (daily at 9:00 AM)"
 
 # Install email plist (daily at noon)
 sed "s|/usr/local/bin/node|$NODE_PATH|g" "$SCRIPT_DIR/$EMAIL_PLIST" > "$AGENTS_DIR/$EMAIL_PLIST"
@@ -60,7 +60,7 @@ echo ""
 echo "Setup complete!"
 echo ""
 echo "Schedule:"
-echo "  Scrape + Summarize:  every hour"
+echo "  Scrape + Summarize:  daily at 9:00 AM"
 echo "  Email report:        00:35, 7:00, 12:00, 21:00"
 echo ""
 echo "IMPORTANT: Configure config.json before first run:"
