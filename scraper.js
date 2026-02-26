@@ -117,10 +117,113 @@ const isCloudflareBlocked = async (page) => {
   );
 };
 
+const classifyChallenge = async (page) => {
+  const content = await page.content();
+  if (content.includes("Sorry you have been blocked")) return "blocked";
+  if (content.includes("challenge-platform")) return "turnstile";
+  return "unknown";
+};
+
+const humanMove = async (page, x, y) => {
+  const steps = Math.floor(Math.random() * 16) + 10; // 10-25 steps
+  const jitterX = (Math.random() - 0.5) * 6; // ±3px
+  const jitterY = (Math.random() - 0.5) * 6;
+  await page.mouse.move(x + jitterX, y + jitterY, { steps });
+  await new Promise((r) => setTimeout(r, 100 + Math.random() * 300));
+};
+
+const solveCloudflareChallenge = async (page) => {
+  console.log("   🔧 Attempting to solve Cloudflare challenge...");
+
+  // Strategy A: Find Turnstile iframe and click its checkbox area
+  try {
+    const frames = page.frames();
+    const cfFrame = frames.find((f) =>
+      f.url().includes("challenges.cloudflare.com")
+    );
+    if (cfFrame) {
+      console.log("   Found Cloudflare challenge iframe");
+      const iframeElement = await page.$('iframe[src*="challenges.cloudflare.com"]');
+      if (iframeElement) {
+        const box = await iframeElement.boundingBox();
+        if (box) {
+          // Checkbox is typically in the left portion of the iframe
+          const clickX = box.x + 30;
+          const clickY = box.y + box.height / 2;
+          await humanMove(page, clickX, clickY);
+          await page.mouse.click(clickX, clickY);
+          console.log("   Clicked Turnstile iframe checkbox area");
+          await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    console.log(`   Strategy A (iframe click) failed: ${err.message}`);
+  }
+
+  // Strategy B: Click checkbox inside the Cloudflare frame directly
+  try {
+    const frames = page.frames();
+    const cfFrame = frames.find((f) =>
+      f.url().includes("challenges.cloudflare.com")
+    );
+    if (cfFrame) {
+      for (const selector of ['input[type="checkbox"]', '[role="checkbox"]', '.mark']) {
+        const el = await cfFrame.$(selector);
+        if (el) {
+          await el.click();
+          console.log(`   Clicked ${selector} inside challenge frame`);
+          await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
+          return;
+        }
+      }
+    }
+  } catch (err) {
+    console.log(`   Strategy B (frame selector) failed: ${err.message}`);
+  }
+
+  // Strategy C: Click "Verify you are human" label/element
+  try {
+    const verifyEl = await page.$('text="Verify you are human"');
+    if (verifyEl) {
+      await verifyEl.click();
+      console.log("   Clicked 'Verify you are human' element");
+      await new Promise((r) => setTimeout(r, 2000 + Math.random() * 1000));
+      return;
+    }
+  } catch (err) {
+    console.log(`   Strategy C (label click) failed: ${err.message}`);
+  }
+
+  console.log("   No solvable challenge element found");
+};
+
 const checkCloudflare = async (page, label) => {
   if (!(await isCloudflareBlocked(page))) return true;
 
-  console.log(`\n⚠️  Cloudflare challenge detected for ${label}, waiting up to 60s...`);
+  const challengeType = await classifyChallenge(page);
+  console.log(`\n⚠️  Cloudflare challenge detected for ${label} (type: ${challengeType})`);
+
+  if (challengeType === "blocked") {
+    console.log("❌ Hard block detected, restart needed");
+    throw new CloudflareError(label);
+  }
+
+  if (challengeType === "turnstile") {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await solveCloudflareChallenge(page);
+      await new Promise((r) => setTimeout(r, 5000));
+      if (!(await isCloudflareBlocked(page))) {
+        console.log(`✅ Challenge cleared after solve attempt ${attempt}`);
+        return true;
+      }
+      console.log(`   Solve attempt ${attempt}/3 did not clear challenge`);
+    }
+  }
+
+  // Fallback: wait up to 60s (handles "unknown" type and failed solves)
+  console.log("   Falling back to passive wait (up to 60s)...");
   for (let i = 1; i <= 6; i++) {
     await new Promise((r) => setTimeout(r, 10000));
     if (!(await isCloudflareBlocked(page))) {
@@ -130,7 +233,7 @@ const checkCloudflare = async (page, label) => {
     console.log(`   Still blocked... (${i * 10}s)`);
   }
 
-  console.log(`❌ Cloudflare challenge not resolved after 60s, restarting...`);
+  console.log(`❌ Cloudflare challenge not resolved, restarting...`);
   throw new CloudflareError(label);
 };
 
